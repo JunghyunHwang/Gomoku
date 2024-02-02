@@ -12,11 +12,17 @@ namespace gomoku
 		, mD2DFactory(nullptr)
 		, mRenderTarget(nullptr)
 		, mGuideStonePosition( { NONE, NONE })
+		, mCurrentTurnStone(eStoneType::Black)
 	{
 		memset(mBrushes, 0, sizeof(mBrushes));
-		memset(mBoard, static_cast<int>(eStoneType::None), sizeof(mBoard));
 
-		mBoard[7][7] = eStoneType::Black; // Test
+		for (int y = 0; y < LINE_COUNT; ++y)
+		{
+			for (int x = 0; x < LINE_COUNT; ++x)
+			{
+				mBoard[y][x] = eStoneType::None;
+			}
+		}
 	}
 
 	App* App::GetInstance()
@@ -44,13 +50,13 @@ namespace gomoku
 		HRESULT hr = D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, &mD2DFactory);
 		if (SUCCEEDED(hr))
 		{
-			hr = createDeviceREsources();
+			hr = createDeviceResources();
 		}
 
 		return hr;
 	}
 
-	HRESULT App::createDeviceREsources()
+	HRESULT App::createDeviceResources()
 	{
 		ASSERT(mHwnd != NULL);
 		HRESULT hr = S_OK;
@@ -70,9 +76,9 @@ namespace gomoku
 
 			if (SUCCEEDED(hr))
 			{
-				mRenderTarget->CreateSolidColorBrush(D2D1::ColorF(0x00000000, 0.f), &mBrushes[0]);
-				mRenderTarget->CreateSolidColorBrush(D2D1::ColorF(0x00000000, 1.f), &mBrushes[1]);
-				mRenderTarget->CreateSolidColorBrush(D2D1::ColorF(0xffffffff, 1.f), &mBrushes[2]);
+				mRenderTarget->CreateSolidColorBrush(D2D1::ColorF(0x00000000, 1.f), &mBrushes[0]); // Black
+				mRenderTarget->CreateSolidColorBrush(D2D1::ColorF(0xffffffff, 1.f), &mBrushes[1]); // White
+				mRenderTarget->CreateSolidColorBrush(D2D1::ColorF(0x00000000, 0.f), &mBrushes[2]); // empty
 			}
 		}
 
@@ -111,6 +117,61 @@ namespace gomoku
 		}
 	}
 
+	void App::setGuideStonePosition(uint32_t x, uint32_t y)
+	{
+		ASSERT(LINE_INTERVAL < 256);
+		const int32_t NOMALIZED_X = (x - BOARD_START_POINT);
+		const int32_t NOMALIZED_Y = (y - BOARD_START_POINT);
+
+		int8_t col = NOMALIZED_X / LINE_INTERVAL;
+		int8_t row = NOMALIZED_Y / LINE_INTERVAL;
+
+		int8_t colAlpha = NOMALIZED_X % LINE_INTERVAL;
+		int8_t rowAlpha = NOMALIZED_Y % LINE_INTERVAL;
+
+		colAlpha -= static_cast<int8_t>(HALF_LINE_INTERVAL);
+		colAlpha >>= 7;
+		colAlpha += 1;
+
+		rowAlpha -= static_cast<int8_t>(HALF_LINE_INTERVAL);
+		rowAlpha >>= 7;
+		rowAlpha += 1;
+
+		col += colAlpha;
+		row += rowAlpha;
+
+		if (col < 0 || col >= LINE_COUNT
+			|| row < 0 || row >= LINE_COUNT)
+		{
+			col = NONE;
+			row = NONE;
+		}
+
+		mGuideStonePosition = { col, row };
+	}
+
+	void App::addStone()
+	{
+		if (!isValidePosition())
+		{
+			return;
+		}
+
+		mBoard[mGuideStonePosition.y][mGuideStonePosition.x] = mCurrentTurnStone;
+		switchTurn();
+	}
+
+	bool App::isValidePosition() const
+	{
+		if (mGuideStonePosition.x != NONE && mGuideStonePosition.y != NONE
+			&& mBoard[mGuideStonePosition.y][mGuideStonePosition.x] == eStoneType::None)
+		{
+			return true;
+		}
+
+		return false;
+	}
+
 	void App::render()
 	{
 		ASSERT(mRenderTarget != nullptr);
@@ -120,9 +181,7 @@ namespace gomoku
 			mRenderTarget->Clear(D2D1::ColorF(0xf5ad42));
 
 			// Draw vertical line
-			auto* emptyBrush = mBrushes[static_cast<int>(eStoneType::None)];
 			auto* blackBrush = mBrushes[static_cast<int>(eStoneType::Black)];
-			auto* whiteBrush = mBrushes[static_cast<int>(eStoneType::White)];
 
 			for (size_t x = 0; x < LINE_COUNT; ++x)
 			{
@@ -145,7 +204,23 @@ namespace gomoku
 				);
 			}
 
-			// Draw Stones
+			// Draw GuidStone
+			if (isValidePosition())
+			{
+				D2D1_ELLIPSE guideStoneInfo = D2D1::Ellipse(
+					D2D1::Point2F(
+						static_cast<float>(BOARD_START_POINT * (mGuideStonePosition.x + 1)),
+						static_cast<float>(BOARD_START_POINT * (mGuideStonePosition.y + 1))
+					),
+					STONE_RADIUS,
+					STONE_RADIUS
+				);
+
+				mRenderTarget->DrawEllipse(guideStoneInfo, blackBrush, STONE_STROKE_WIDTH);
+				mRenderTarget->FillEllipse(guideStoneInfo, mBrushes[static_cast<int>(mCurrentTurnStone)]);
+			}
+
+			// Draw Board
 			for (size_t y = 0; y < LINE_COUNT; ++y)
 			{
 				for (size_t x = 0; x < LINE_COUNT; ++x)
@@ -165,24 +240,9 @@ namespace gomoku
 					);
 
 					mRenderTarget->DrawEllipse(stoneInfo, blackBrush, STONE_STROKE_WIDTH);
+					int t = static_cast<int>(mBoard[y][x]);
 					mRenderTarget->FillEllipse(stoneInfo, mBrushes[static_cast<int>(mBoard[y][x])]);
 				}
-			}
-
-			// Draw GuidStone
-			if (isValideGuideLine())
-			{
-				D2D1_ELLIPSE stoneInfo = D2D1::Ellipse(
-					D2D1::Point2F(
-						static_cast<float>(BOARD_START_POINT * (mGuideStonePosition.x + 1)),
-						static_cast<float>(BOARD_START_POINT * (mGuideStonePosition.y + 1))
-					),
-					STONE_RADIUS,
-					STONE_RADIUS
-				);
-
-				mRenderTarget->DrawEllipse(stoneInfo, blackBrush, STONE_STROKE_WIDTH);
-				mRenderTarget->FillEllipse(stoneInfo, mBrushes[2]);
 			}
 		}
 		mRenderTarget->EndDraw();
@@ -194,10 +254,10 @@ namespace gomoku
 		{
 		case WM_PAINT:
 			ValidateRect(hWnd, NULL);
-			goto CALL_RENDER;
+			break;
 		case WM_MOUSEMOVE:
 		{
-			mInstance->mGuideStonePosition = mInstance->getBoardPosition(LOWORD(lParam), HIWORD(lParam)); // LOWORD(lParam), HIWORD(lParam)
+			mInstance->setGuideStonePosition(LOWORD(lParam), HIWORD(lParam));
 #ifdef _DEBUG
 			wchar_t szBuff[50];
 			swprintf_s(
@@ -207,16 +267,18 @@ namespace gomoku
 			);
 			SetWindowText(mInstance->mHwnd, szBuff);
 #endif
-			goto CALL_RENDER;
+			break;
 		}
+		case WM_LBUTTONDOWN:
+			 mInstance->addStone();
+			break;
 		case WM_DESTROY:
 			PostQuitMessage(0);
-			return 0;
+			goto NO_RENDER;
 		default:
 			return DefWindowProc(hWnd, message, wParam, lParam);
 		}
 
-	CALL_RENDER:
 		mInstance->render();
 
 	NO_RENDER:

@@ -24,28 +24,32 @@ namespace gomoku
 		App(const App* other) = delete;
 		App& operator=(const App* rhs) = delete;
 
-	private:
-		HRESULT createDeviceREsources();
+		// D2D1
+		HRESULT createDeviceResources();
 		void render();
-		inline POINT getBoardPosition(uint32_t x, uint32_t y) const;
-		inline bool isValideGuideLine() const;
+
+		// App
+		void setGuideStonePosition(uint32_t x, uint32_t y);
+		void addStone();
+		bool isValidePosition() const;
+		inline void switchTurn();
 
 	private:
 		enum
 		{
 			NONE = -1,
-			BOARD_START_POINT = 48,
+			CURR_STONE_CHANGE = 0x01,
+			STONE_STROKE_WIDTH = 2,
+			BRUSH_COUNT = 3,
 			LINE_COUNT = 15,
 			LINE_INTERVAL = 48,
-			BRUSH_COUNT = 3,
-			STONE_STROKE_WIDTH = 2,
+			BOARD_START_POINT = 48,
 		};
 
 		static constexpr float HALF_LINE_INTERVAL = LINE_INTERVAL / 2.f;
 		static constexpr float LINE_WIDTH = 1.3f;
 		static constexpr float STONE_RADIUS = 20.0f;
 
-	private:
 		static App* mInstance;
 
 		ID2D1Factory* mD2DFactory;
@@ -56,47 +60,13 @@ namespace gomoku
 		POINT mResolution;
 
 		eStoneType mBoard[LINE_COUNT][LINE_COUNT];
+		eStoneType mCurrentTurnStone;
 		POINT mGuideStonePosition;
 	};
 
-	POINT App::getBoardPosition(uint32_t x, uint32_t y) const
+	void App::switchTurn()
 	{
-		ASSERT(LINE_INTERVAL < 256);
-		const int32_t NOMALIZED_X = (x - BOARD_START_POINT);
-		const int32_t NOMALIZED_Y = (y - BOARD_START_POINT);
-
-		int8_t col = NOMALIZED_X / LINE_INTERVAL;
-		int8_t row = NOMALIZED_Y / LINE_INTERVAL;
-
-		int8_t colAlpha = NOMALIZED_X % LINE_INTERVAL;
-		int8_t rowAlpha = NOMALIZED_Y % LINE_INTERVAL;
-
-		colAlpha -= static_cast<int8_t>(HALF_LINE_INTERVAL);
-		colAlpha >>= 7;
-		colAlpha += 1;
-
-		rowAlpha -= static_cast<int8_t>(HALF_LINE_INTERVAL);
-		rowAlpha >>= 7;
-		rowAlpha += 1;
-
-		col += colAlpha;
-		row += rowAlpha;
-
-		if (col < 0 || col >= LINE_COUNT)
-		{
-			return { NONE, NONE };
-		}
-
-		if (row < 0 || row >= LINE_COUNT)
-		{
-			return { NONE, NONE };
-		}
-
-		return { col, row };
-	}
-
-	bool App::isValideGuideLine() const
-	{
-		return (mGuideStonePosition.x != NONE && mGuideStonePosition.y != NONE);
+		int curr = static_cast<int>(mCurrentTurnStone);
+		mCurrentTurnStone = static_cast<eStoneType>(curr ^ CURR_STONE_CHANGE);
 	}
 }
