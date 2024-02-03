@@ -131,13 +131,16 @@
   <ItemGroup>
     <ClInclude Include="App.h" />
     <ClInclude Include="eStoneType.h" />
+    <ClInclude Include="GameManager.h" />
     <ClInclude Include="Gomoku.h" />
+    <ClInclude Include="GomokuHelper.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="Resource.h" />
     <ClInclude Include="targetver.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="App.cpp" />
+    <ClCompile Include="GameManager.cpp" />
     <ClCompile Include="Gomoku.cpp" />
   </ItemGroup>
   <ItemGroup>

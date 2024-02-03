@@ -2,7 +2,7 @@
 
 namespace gomoku
 {
-	enum class eStoneType
+	enum class eStoneColor
 	{
 		Black,
 		White,

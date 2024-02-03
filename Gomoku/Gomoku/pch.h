@@ -12,6 +12,7 @@
 #include <memory.h>
 #include <wchar.h>
 #include <cstdint>
+#include <vector>
 
 // Direct2D
 #pragma comment(lib, "d2d1.lib")
