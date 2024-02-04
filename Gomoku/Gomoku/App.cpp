@@ -216,7 +216,23 @@ namespace gomoku
 		}
 		case WM_LBUTTONDOWN:
 			mGameManager->AddStone();
-			mGameManager->IsGameOver();
+			if (mGameManager->IsGameOver())
+			{
+				mInstance->render();
+				eStoneColor winner = mGameManager->GetWinnerStone();
+
+				switch (winner)
+				{
+				case eStoneColor::Black:
+					MessageBox(hWnd, L"Black wins", L"Congratulations!", MB_OK);
+					break;
+				case eStoneColor::White:
+					MessageBox(hWnd, L"White wins", L"Congratulations!", MB_OK);
+					break;
+				}
+
+				mGameManager->SetNewGame();
+			}
 			break;
 		case WM_DESTROY:
 			PostQuitMessage(0);
