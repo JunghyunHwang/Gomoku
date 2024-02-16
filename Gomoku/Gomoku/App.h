@@ -10,7 +10,7 @@ namespace gomoku
 	{
 	public:
 		static App* GetInstance();
-		HRESULT Init(HWND, POINT);
+		HRESULT Init(HINSTANCE, HWND, POINT);
 		void Run();
 		void Release();
 		void Resize(uint32_t width, uint32_t height);
@@ -34,6 +34,7 @@ namespace gomoku
 		ID2D1HwndRenderTarget* mRenderTarget;
 		ID2D1SolidColorBrush* mBrushes[BRUSH_COUNT];
 
+		HINSTANCE mHinst;
 		HWND mHwnd;
 		POINT mResolution;
 	};

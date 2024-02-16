@@ -130,7 +130,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="App.h" />
-    <ClInclude Include="eStoneType.h" />
+    <ClInclude Include="eStoneColor.h" />
     <ClInclude Include="GameManager.h" />
     <ClInclude Include="Gomoku.h" />
     <ClInclude Include="GomokuHelper.h" />

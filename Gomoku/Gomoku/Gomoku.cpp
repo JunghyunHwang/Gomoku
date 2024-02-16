@@ -1,12 +1,9 @@
 #include "pch.h"
 #include "Gomoku.h"
+#include "GameManager.h"
 #include "App.h"
 
 using namespace gomoku;
-
-#define APPRESOLUTION 800
-
-HINSTANCE hInst;
 
 gomoku::App* InitInstance(HINSTANCE, int);
 
@@ -15,6 +12,24 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
                      _In_ LPWSTR    lpCmdLine,
                      _In_ int       nCmdShow)
 {
+    WSADATA wsa;
+    if (WSAStartup(MAKEWORD(2, 2), &wsa) == SOCKET_ERROR)
+    {
+        return 1;
+    }
+
+    GameManager* instance = GameManager::GetInstance();
+    int iResult;
+
+    SOCKADDR_IN oppnentAddr = { 0, };
+    iResult = instance->FindOppnent(oppnentAddr);
+    if (iResult != 0)
+    {
+        std::cout << "ERROR: Failed to connect server with error code: " << iResult << std::endl;
+        return 0;
+    }
+
+    /*
     WNDCLASSEXW wcex;
     wcex.cbSize = sizeof(WNDCLASSEX);
     wcex.style = CS_HREDRAW | CS_VREDRAW;
@@ -31,28 +46,30 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     RegisterClassExW(&wcex);
 
     App* app = InitInstance(hInstance, nCmdShow);
-
-    if (app == nullptr)
     {
-        return FALSE;
-    }
-    
-    app->Run();
-    app->Release();
+        if (app == nullptr)
+        {
+            return FALSE;
+        }
 
+        app->Run();
+    }
+    app->Release();
+    */
+
+    WSACleanup();
     return 0;
 }
 
 gomoku::App* InitInstance(HINSTANCE hInstance, int nCmdShow)
 {
-   hInst = hInstance;
-
    HWND hWnd = CreateWindowW(
        L"Gomoku",
        L"Gomoku",
        WS_OVERLAPPEDWINDOW,
        500, 200, 800, 800,
-       nullptr, nullptr, hInstance, nullptr);
+       nullptr, nullptr, hInstance, nullptr
+   );
 
    if (!hWnd)
    {
@@ -61,7 +78,7 @@ gomoku::App* InitInstance(HINSTANCE hInstance, int nCmdShow)
 
    App* app = gomoku::App::GetInstance();
 
-   if (FAILED(app->Init(hWnd, POINT{ APPRESOLUTION, APPRESOLUTION })))
+   if (FAILED(app->Init(hInstance, hWnd, POINT{ RESOLUTION, RESOLUTION })))
    {
        app->Release();
        return nullptr;

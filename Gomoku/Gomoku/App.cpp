@@ -1,5 +1,5 @@
 #include "pch.h"
-#include "eStoneType.h"
+#include "eStoneColor.h"
 #include "App.h"
 #include "GameManager.h"
 
@@ -27,7 +27,7 @@ namespace gomoku
 		return mInstance;
 	}
 
-	HRESULT App::Init(HWND hWnd, POINT resolution)
+	HRESULT App::Init(HINSTANCE hInst, HWND hWnd, POINT resolution)
 	{
 		ASSERT(hWnd != NULL);
 		ASSERT(mD2DFactory == nullptr);
@@ -36,6 +36,7 @@ namespace gomoku
 			return E_FAIL;
 		}
 
+		mHinst = hInst;
 		mHwnd = hWnd;
 		mResolution = resolution;
 
@@ -205,11 +206,7 @@ namespace gomoku
 #ifdef _DEBUG
 			wchar_t szBuff[50];
 			POINT p = mGameManager->GetGuideStonePosition();
-			swprintf_s(
-				szBuff,
-				L"X: %d / Y: %d / Row: %d / Col: %d",
-				LOWORD(lParam), HIWORD(lParam), p.y, p.x
-			);
+			swprintf_s(szBuff, L"X: %d / Y: %d / Row: %d / Col: %d", LOWORD(lParam), HIWORD(lParam), p.y, p.x);
 			SetWindowText(mInstance->mHwnd, szBuff);
 #endif
 			break;

@@ -1,5 +1,10 @@
 #pragma once
 
+#define XPOS(x) (BOARD_START_POINT + (x) * LINE_INTERVAL)
+#define YPOS(y) (BOARD_START_POINT + (y) * LINE_INTERVAL)
+
+#define DELIM ","
+
 namespace gomoku
 {
 	enum
@@ -13,10 +18,9 @@ namespace gomoku
 		LINE_COUNT = 15,
 		LINE_INTERVAL = 48,
 		BOARD_START_POINT = 48,
+		RESOLUTION = 800,
+		SERVER_PORT_NUM = 25000,
 	};
-
-	#define XPOS(x) (BOARD_START_POINT + (x) * LINE_INTERVAL)
-	#define YPOS(y) (BOARD_START_POINT + (y) * LINE_INTERVAL)
 
 	static constexpr float HALF_LINE_INTERVAL = LINE_INTERVAL / 2.f;
 	static constexpr float LINE_WIDTH = 1.3f;
