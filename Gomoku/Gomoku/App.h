@@ -27,6 +27,13 @@ namespace gomoku
 		void render();
 
 	private:
+		enum
+		{
+			STONE_STROKE_WIDTH = 2,
+			LOW_OPACITY = 2,
+			BRUSH_COUNT = 4,
+		};
+
 		static App* mInstance;
 		static GameManager* mGameManager;
 

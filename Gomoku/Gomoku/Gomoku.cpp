@@ -18,19 +18,29 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         return 1;
     }
 
-    GameManager* instance = GameManager::GetInstance();
+    GameManager* mInstance = GameManager::GetInstance();
     int iResult;
-
     SOCKADDR_IN oppnentAddr = { 0, };
-    iResult = instance->FindOppnent(oppnentAddr);
-    if (iResult != 0)
+
+    iResult = mInstance->Bind();
+    if (iResult != S_OK)
     {
-        std::cout << "ERROR: Failed to connect server with error code: " << iResult << std::endl;
-        return 0;
+        std::cout << "ERROR: Failed to Bind with error code: " << iResult << std::endl;
     }
 
-    /*
-    WNDCLASSEXW wcex;
+    iResult = mInstance->FindOppnent(oppnentAddr);
+    if (iResult != S_OK)
+    {
+        std::cout << "ERROR: Failed to connect server with error code: " << iResult << std::endl;
+    }
+
+    iResult = mInstance->ConnectOppnent(oppnentAddr);
+    if (iResult != S_OK)
+    {
+        std::cout << "ERROR: Failed to connect oppnent with error code: " << iResult << std::endl;
+    }
+    
+    /*WNDCLASSEXW wcex;
     wcex.cbSize = sizeof(WNDCLASSEX);
     wcex.style = CS_HREDRAW | CS_VREDRAW;
     wcex.lpfnWndProc = App::WndProc;
@@ -54,8 +64,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
         app->Run();
     }
-    app->Release();
-    */
+    app->Release();*/
 
     WSACleanup();
     return 0;

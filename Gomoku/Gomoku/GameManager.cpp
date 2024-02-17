@@ -19,8 +19,8 @@ namespace gomoku
 		: mCurrentStoneColor(eStoneColor::Black)
 		, mWinnerStoneColor(eStoneColor::None)
 		, mGuideStonePosition({ NONE, NONE })
-		, mbGameOver(true)
-		, mMySocket(socket(AF_INET, SOCK_STREAM, 0))
+		, mbGameOver(false)
+		, mListenSocket(socket(AF_INET, SOCK_STREAM, 0))
 		, mServerSocket(socket(AF_INET, SOCK_STREAM, 0))
 		, mOppnentSocket(socket(AF_INET, SOCK_STREAM, 0))
 		, mBoard(LINE_COUNT, std::vector<eStoneColor>(LINE_COUNT, eStoneColor::None))
@@ -30,7 +30,7 @@ namespace gomoku
 
 	GameManager::~GameManager()
 	{
-		closesocket(mMySocket);
+		closesocket(mListenSocket);
 		closesocket(mServerSocket);
 		closesocket(mOppnentSocket);
 
@@ -41,73 +41,55 @@ namespace gomoku
 	{
 		SOCKADDR_IN myAddr = { 0, };
 		myAddr.sin_family = AF_INET;
-		myAddr.sin_port = htons(MYSOCKET_PORT);
+		myAddr.sin_port = htons(LISTEN_SOCK_PORT);
 		inet_pton(AF_INET, "192.168.55.6", &myAddr.sin_addr);
 
-		if (bind(mMySocket, (SOCKADDR*)&myAddr, sizeof(myAddr)) == SOCKET_ERROR)
+		if (bind(mListenSocket, (SOCKADDR*)&myAddr, sizeof(myAddr)) == SOCKET_ERROR)
 		{
 			return WSAGetLastError();
 		}
 
-		if (listen(mMySocket, SOMAXCONN) == SOCKET_ERROR)
+		if (listen(mListenSocket, SOMAXCONN) == SOCKET_ERROR)
 		{
 			return WSAGetLastError();
 		}
+
+		mAcceptAndReceiveThread = std::thread(&GameManager::accceptAndReceive, this);
 
 		return S_OK;
 	}
 
-	int GameManager::FindOppnent(_Out_ SOCKADDR_IN& oppnentAddr)
+	void GameManager::accceptAndReceive()
 	{
-		int oppnentAddrSize = sizeof(oppnentAddr);
+		SOCKET oppnentSock;
+		SOCKADDR_IN client = { 0, };
+		int clientAddrSize = sizeof(client);
 
-		oppnentAddr.sin_family = AF_INET;
-		oppnentAddr.sin_port = htons(SERVER_PORT_NUM);
-		inet_pton(AF_INET, "192.168.55.6", &oppnentAddr.sin_addr);
+		oppnentSock = accept(mListenSocket, (SOCKADDR*)&client, &clientAddrSize);
 
-		if (connect(mServerSocket, (SOCKADDR*)&oppnentAddr, oppnentAddrSize) == SOCKET_ERROR)
+		while (recv(oppnentSock, mBuffer, BUFFER_SIZE, 0) > 0)
+		{
+			std::cout << "->" << mBuffer << std::endl;
+		}
+
+		closesocket(oppnentSock);
+	}
+
+	int GameManager::FindOppnent(SOCKADDR_IN& out)
+	{
+		out.sin_family = AF_INET;
+		out.sin_port = htons(SERVER_PORT);
+		inet_pton(AF_INET, "192.168.55.6", &out.sin_addr);
+
+		if (connect(mServerSocket, (SOCKADDR*)&out, sizeof(out)) == SOCKET_ERROR)
 		{
 			return WSAGetLastError();
 		}
-		
-		memset(&oppnentAddr, 0, oppnentAddrSize);
+
 		recv(mServerSocket, mBuffer, BUFFER_SIZE, 0); // Receive Oppnent address
 
-		char* tokenized = strtok(mBuffer, DELIM);
-		ASSERT(tokenized != NULL);
-
-		if (atoi(tokenized) == HOST)
-		{
-			int ret = Bind();
-			if (ret != S_OK)
-			{
-				return ret;
-			}
-
-			ASSERT(strtok(NULL, DELIM) == NULL);
-			mOppnentSocket = accept(mMySocket, (SOCKADDR*)&oppnentAddr, &oppnentAddrSize);
-
-			if (mOppnentSocket == INVALID_SOCKET)
-			{
-				return WSAGetLastError();
-			}
-			
-			return S_OK;
-		}
-
-		oppnentAddr.sin_family = AF_INET;
-		oppnentAddr.sin_port = htons(MYSOCKET_PORT);
-
-		tokenized = strtok(NULL, DELIM);
-		ASSERT(tokenized != NULL);
-		oppnentAddr.sin_addr.S_un.S_addr = atoi(tokenized);
-
-		ASSERT(strtok(NULL, DELIM) == NULL);
-
-		if (connect(mOppnentSocket, (SOCKADDR*)&oppnentAddr, oppnentAddrSize) == SOCKET_ERROR)
-		{
-			return WSAGetLastError();
-		}
+		out.sin_port = htons(21000);
+		out.sin_addr.S_un.S_addr = atoi(mBuffer);
 
 		return S_OK;
 	}
@@ -119,17 +101,26 @@ namespace gomoku
 			return WSAGetLastError();
 		}
 
-		// mRecvThread = std::thread(&GameManager::recvFromOppnent, this);
+		char szBuffer[BUFFER_SIZE];
+
+		while (true)
+		{
+			std::cin.getline(szBuffer, BUFFER_SIZE);
+			if (std::cin.eof() || strcmp(szBuffer, "exit") == 0)
+			{
+				break;
+			}
+
+			if (std::cin.fail())
+			{
+				std::cin.clear();
+				std::cin.ignore(LLONG_MAX, '\n');
+			}
+
+			send(mOppnentSocket, szBuffer, static_cast<int>(strlen(szBuffer) + 1), 0);
+		}
 
 		return S_OK;
-	}
-
-	void GameManager::recvFromOppnent()
-	{
-		while (recv(mOppnentSocket, mBuffer, BUFFER_SIZE, 0) > 0)
-		{
-			
-		}
 	}
 
 	void GameManager::SetNewGame()
@@ -150,7 +141,7 @@ namespace gomoku
 				mBoard[y][x] = eStoneColor::None;
 			}
 		}
-		
+
 		mCurrentStoneColor = eStoneColor::Black;
 		mWinnerStoneColor = eStoneColor::None;
 		mGuideStonePosition.x = NONE;

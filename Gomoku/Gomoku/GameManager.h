@@ -16,8 +16,9 @@ namespace gomoku
 		void SetNewGame();
 		void AddStone();
 		void SetGuideStonePosition(uint32_t x, uint32_t y);
+
 		int Bind();
-		int FindOppnent(_Out_ SOCKADDR_IN& oppnentAddr);
+		int FindOppnent(SOCKADDR_IN& out);
 		int ConnectOppnent(SOCKADDR_IN& oppnentAddr);
 
 		inline bool IsValidePosition() const;
@@ -51,10 +52,18 @@ namespace gomoku
 		uint32_t checkNorthEastRecursive(uint32_t x, uint32_t y) const;
 		uint32_t checkSouthWestRecursive(uint32_t x, uint32_t y) const;
 
-		void recvFromOppnent();
 		inline void switchTurn();
-		
+		void accceptAndReceive();
+
 	private:
+		enum
+		{
+			MAX_CHAINING_COUNT = 5,
+			BUFFER_SIZE = 128,
+			LISTEN_SOCK_PORT = 20000,
+			SERVER_PORT = 25000,
+		};
+
 		static GameManager* mInstance;
 
 		std::vector<std::vector<eStoneColor>> mBoard;
@@ -63,19 +72,13 @@ namespace gomoku
 		POINT mGuideStonePosition;
 		bool mbGameOver;
 
-		enum
-		{
-			HOST,
-			GUEST,
-			BUFFER_SIZE = 128,
-			MYSOCKET_PORT = 20000,
-		};
-
-		SOCKET mMySocket;
+		SOCKET mListenSocket;
 		SOCKET mServerSocket;
 		SOCKET mOppnentSocket;
-		std::thread mRecvThread;
+
 		char mBuffer[BUFFER_SIZE] = { 0, };
+
+		std::thread mAcceptAndReceiveThread;
 	};
 
 	bool GameManager::IsValidePosition() const

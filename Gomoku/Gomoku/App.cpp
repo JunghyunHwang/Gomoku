@@ -103,6 +103,28 @@ namespace gomoku
 
 	void App::Run()
 	{
+		int iResult;
+
+		SOCKADDR_IN oppnentAddr = { 0, };
+
+		iResult = mGameManager->Bind();
+		if (iResult != 0)
+		{
+			std::cout << "ERROR: Failed to Bind with error code: " << iResult << std::endl;
+		}
+
+		iResult = mGameManager->FindOppnent(oppnentAddr);
+		if (iResult != 0)
+		{
+			std::cout << "ERROR: Failed to connect server with error code: " << iResult << std::endl;
+		}
+
+		iResult = mGameManager->ConnectOppnent(oppnentAddr);
+		if (iResult != 0)
+		{
+			std::cout << "ERROR: Failed to connect oppnent with error code: " << iResult << std::endl;
+		}
+
 		MSG msg;
 		while (GetMessage(&msg, NULL, 0, 0))
 		{
