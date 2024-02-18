@@ -8,12 +8,14 @@ namespace gomoku
 
 	class App final
 	{
+		friend GameManager;
 	public:
 		static App* GetInstance();
 		HRESULT Init(HINSTANCE, HWND, POINT);
 		void Run();
 		void Release();
-		void Resize(uint32_t width, uint32_t height);
+		void Resize(uint32_t, uint32_t);
+
 		static LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
 
 	private:
@@ -25,6 +27,7 @@ namespace gomoku
 		// D2D1
 		HRESULT createDeviceResources();
 		void render();
+		void notifyWinner(eStoneColor);
 
 	private:
 		enum

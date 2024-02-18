@@ -1,7 +1,8 @@
 #pragma once
 
 #define NONE -1
-#define CURR_STONE_CHANGE 0x01
+#define XOR_CHANGE_COLOR 0x01
+#define XOR_CHANGE_TURN 0x01
 #define LINE_COUNT 15
 #define LINE_INTERVAL 48
 #define BOARD_START_POINT 48

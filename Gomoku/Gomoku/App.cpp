@@ -9,7 +9,8 @@ namespace gomoku
 	GameManager* App::mGameManager = nullptr;
 
 	App::App()
-		: mHwnd(nullptr)
+		: mHinst(nullptr)
+		, mHwnd(nullptr)
 		, mResolution({ NONE, NONE })
 		, mD2DFactory(nullptr)
 		, mRenderTarget(nullptr)
@@ -88,6 +89,19 @@ namespace gomoku
 		}
 	}
 
+	void App::notifyWinner(eStoneColor winner)
+	{
+		switch (winner)
+		{
+		case eStoneColor::Black:
+			MessageBox(mHwnd, L"Black wins", L"Congratulations!", MB_OK);
+			break;
+		case eStoneColor::White:
+			MessageBox(mHwnd, L"White wins", L"Congratulations!", MB_OK);
+			break;
+		}
+	}
+
 	void App::Release()
 	{
 		SafeRelease(&mD2DFactory);
@@ -103,27 +117,14 @@ namespace gomoku
 
 	void App::Run()
 	{
-		int iResult;
-
-		SOCKADDR_IN oppnentAddr = { 0, };
-
-		iResult = mGameManager->Bind();
+		int iResult = mGameManager->BindAndListen();
 		if (iResult != 0)
 		{
 			std::cout << "ERROR: Failed to Bind with error code: " << iResult << std::endl;
+			return;
 		}
 
-		iResult = mGameManager->FindOppnent(oppnentAddr);
-		if (iResult != 0)
-		{
-			std::cout << "ERROR: Failed to connect server with error code: " << iResult << std::endl;
-		}
-
-		iResult = mGameManager->ConnectOppnent(oppnentAddr);
-		if (iResult != 0)
-		{
-			std::cout << "ERROR: Failed to connect oppnent with error code: " << iResult << std::endl;
-		}
+		mGameManager->ConnectOpponent();
 
 		MSG msg;
 		while (GetMessage(&msg, NULL, 0, 0))
@@ -170,9 +171,9 @@ namespace gomoku
 			auto mBoard = mGameManager->GetBoard();
 
 			// Draw GuidStone
-			if (mGameManager->IsValidePosition())
+			if (mGameManager->IsMyTurn() && mGameManager->IsValidePosition())
 			{
-				eStoneColor currStone = mGameManager->GetCurrentStoneColor();
+				eStoneColor stoneColor = mGameManager->GetStoneColor();
 				POINT currPos = mGameManager->GetGuideStonePosition();
 
 				D2D1_ELLIPSE guideStoneInfo = D2D1::Ellipse(
@@ -185,7 +186,7 @@ namespace gomoku
 				);
 
 				mRenderTarget->DrawEllipse(guideStoneInfo, lowOpacityBlackBrush, STONE_STROKE_WIDTH);
-				mRenderTarget->FillEllipse(guideStoneInfo, mBrushes[static_cast<int>(currStone) + LOW_OPACITY]);
+				mRenderTarget->FillEllipse(guideStoneInfo, mBrushes[static_cast<int>(stoneColor) + LOW_OPACITY]);
 			}
 
 			// Draw Board
@@ -224,6 +225,11 @@ namespace gomoku
 			break;
 		case WM_MOUSEMOVE:
 		{
+			if (mGameManager->IsGameOver())
+			{
+				goto NO_RENDER;
+			}
+
 			mGameManager->SetGuideStonePosition(LOWORD(lParam), HIWORD(lParam));
 #ifdef _DEBUG
 			wchar_t szBuff[50];
@@ -234,22 +240,16 @@ namespace gomoku
 			break;
 		}
 		case WM_LBUTTONDOWN:
+			if (mGameManager->IsGameOver())
+			{
+				goto NO_RENDER;
+			}
+
 			mGameManager->AddStone();
 			if (mGameManager->IsGameOver())
 			{
 				mInstance->render();
-				eStoneColor winner = mGameManager->GetWinnerStone();
-
-				switch (winner)
-				{
-				case eStoneColor::Black:
-					MessageBox(hWnd, L"Black wins", L"Congratulations!", MB_OK);
-					break;
-				case eStoneColor::White:
-					MessageBox(hWnd, L"White wins", L"Congratulations!", MB_OK);
-					break;
-				}
-
+				mInstance->notifyWinner(mGameManager->GetWinnerStone());
 				mGameManager->SetNewGame();
 			}
 			break;

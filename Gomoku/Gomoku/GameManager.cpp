@@ -1,4 +1,5 @@
 #include "pch.h"
+#include "App.h"
 #include "GameManager.h"
 
 namespace gomoku
@@ -16,13 +17,15 @@ namespace gomoku
 	}
 
 	GameManager::GameManager()
-		: mCurrentStoneColor(eStoneColor::Black)
-		, mWinnerStoneColor(eStoneColor::None)
+		: mMyStone(eStoneColor::None)
+		, mCurrentTurnStone(eStoneColor::None)
+		, mWinnerStone(eStoneColor::None)
 		, mGuideStonePosition({ NONE, NONE })
-		, mbGameOver(false)
+		, mbGameOver(true)
+		, mbIsMyTurn(false)
 		, mListenSocket(socket(AF_INET, SOCK_STREAM, 0))
 		, mServerSocket(socket(AF_INET, SOCK_STREAM, 0))
-		, mOppnentSocket(socket(AF_INET, SOCK_STREAM, 0))
+		, mSendSocket(socket(AF_INET, SOCK_STREAM, 0))
 		, mBoard(LINE_COUNT, std::vector<eStoneColor>(LINE_COUNT, eStoneColor::None))
 	{
 		// When fail to create socket
@@ -32,16 +35,16 @@ namespace gomoku
 	{
 		closesocket(mListenSocket);
 		closesocket(mServerSocket);
-		closesocket(mOppnentSocket);
+		closesocket(mSendSocket);
 
 		delete mInstance;
 	}
 
-	int GameManager::Bind()
+	int GameManager::BindAndListen()
 	{
 		SOCKADDR_IN myAddr = { 0, };
 		myAddr.sin_family = AF_INET;
-		myAddr.sin_port = htons(LISTEN_SOCK_PORT);
+		myAddr.sin_port = htons(LISTEN_PORT);
 		inet_pton(AF_INET, "192.168.55.6", &myAddr.sin_addr);
 
 		if (bind(mListenSocket, (SOCKADDR*)&myAddr, sizeof(myAddr)) == SOCKET_ERROR)
@@ -61,72 +64,80 @@ namespace gomoku
 
 	void GameManager::accceptAndReceive()
 	{
-		SOCKET oppnentSock;
+		SOCKET recvSock;
 		SOCKADDR_IN client = { 0, };
 		int clientAddrSize = sizeof(client);
 
-		oppnentSock = accept(mListenSocket, (SOCKADDR*)&client, &clientAddrSize);
+		recvSock = accept(mListenSocket, (SOCKADDR*)&client, &clientAddrSize);
 
-		while (recv(oppnentSock, mBuffer, BUFFER_SIZE, 0) > 0)
+		POINT p;
+		while (recv(recvSock, (char*)&p, sizeof(p), 0) > 0)
 		{
-			std::cout << "->" << mBuffer << std::endl;
+			ASSERT(!mbIsMyTurn);
+			ASSERT(p.x >= 0 && p.x < LINE_COUNT);
+			ASSERT(p.y >= 0 && p.y < LINE_COUNT);
+
+			mBoard[p.y][p.x] = mCurrentTurnStone;
+			App::GetInstance()->render();
+
+			if (checkGameOver(p))
+			{
+				App::GetInstance()->notifyWinner(mWinnerStone);
+				SetNewGame();
+			}
 		}
 
-		closesocket(oppnentSock);
+		closesocket(recvSock);
+		closesocket(mSendSocket);
 	}
 
-	int GameManager::FindOppnent(SOCKADDR_IN& out)
+	int GameManager::ConnectOpponent()
 	{
-		out.sin_family = AF_INET;
-		out.sin_port = htons(SERVER_PORT);
-		inet_pton(AF_INET, "192.168.55.6", &out.sin_addr);
+		SOCKADDR_IN serverAddr = { 0, };
+		serverAddr.sin_family = AF_INET;
+		serverAddr.sin_port = htons(SERVER_PORT);
+		inet_pton(AF_INET, "192.168.55.6", &serverAddr.sin_addr);
 
-		if (connect(mServerSocket, (SOCKADDR*)&out, sizeof(out)) == SOCKET_ERROR)
+		if (connect(mServerSocket, (SOCKADDR*)&serverAddr, sizeof(serverAddr)) == SOCKET_ERROR)
 		{
 			return WSAGetLastError();
 		}
+
+		mServerRecvThread = std::thread(&GameManager::recvFromServer, this);
+
+		return S_OK;
+	}
+
+	void GameManager::recvFromServer()
+	{
+		SOCKADDR_IN oppnentAddr = { 0, };
+		oppnentAddr.sin_family = AF_INET;
+		oppnentAddr.sin_port = htons(OPPNENT_PORT);
 
 		recv(mServerSocket, mBuffer, BUFFER_SIZE, 0); // Receive Oppnent address
 
-		out.sin_port = htons(21000);
-		out.sin_addr.S_un.S_addr = atoi(mBuffer);
+		char* tokenized = strtok(mBuffer, DELIM);
+		mMyStone = static_cast<eStoneColor>(atoi(tokenized));
 
-		return S_OK;
-	}
+		tokenized = strtok(NULL, DELIM);
+		oppnentAddr.sin_addr.S_un.S_addr = atoi(tokenized);
 
-	int GameManager::ConnectOppnent(SOCKADDR_IN& oppnentAddr)
-	{
-		if (connect(mOppnentSocket, (SOCKADDR*)&oppnentAddr, sizeof(oppnentAddr)) == SOCKET_ERROR)
+		ASSERT(strtok(NULL, DELIM) == NULL);
+
+		if (connect(mSendSocket, (SOCKADDR*)&oppnentAddr, sizeof(oppnentAddr)) == SOCKET_ERROR)
 		{
-			return WSAGetLastError();
+			std::cout << "Faild to connect opponent with error code: " << WSAGetLastError() << std::endl;
+			return;
 		}
 
-		char szBuffer[BUFFER_SIZE];
-
-		while (true)
-		{
-			std::cin.getline(szBuffer, BUFFER_SIZE);
-			if (std::cin.eof() || strcmp(szBuffer, "exit") == 0)
-			{
-				break;
-			}
-
-			if (std::cin.fail())
-			{
-				std::cin.clear();
-				std::cin.ignore(LLONG_MAX, '\n');
-			}
-
-			send(mOppnentSocket, szBuffer, static_cast<int>(strlen(szBuffer) + 1), 0);
-		}
-
-		return S_OK;
+		SetNewGame();
 	}
 
 	void GameManager::SetNewGame()
 	{
 		ASSERT(mBoard.size() == LINE_COUNT);
 		ASSERT(mBoard[0].size() == LINE_COUNT);
+		ASSERT(!mbIsMyTurn);
 
 		if (!mbGameOver)
 		{
@@ -142,10 +153,16 @@ namespace gomoku
 			}
 		}
 
-		mCurrentStoneColor = eStoneColor::Black;
-		mWinnerStoneColor = eStoneColor::None;
+		mWinnerStone = eStoneColor::None;
 		mGuideStonePosition.x = NONE;
 		mGuideStonePosition.y = NONE;
+		mCurrentTurnStone = eStoneColor::Black;
+
+		if (mMyStone == eStoneColor::Black)
+		{
+			mbIsMyTurn = true;
+		}
+
 		mbGameOver = false;
 	}
 
@@ -186,44 +203,47 @@ namespace gomoku
 	void GameManager::AddStone()
 	{
 		ASSERT(!mbGameOver);
-		if (!IsValidePosition())
+		
+		if (!mbIsMyTurn || !IsValidePosition())
 		{
 			return;
 		}
 
-		mBoard[mGuideStonePosition.y][mGuideStonePosition.x] = mCurrentStoneColor;
-		if (checkGameOver())
-		{
-			mWinnerStoneColor = mCurrentStoneColor;
-			mbGameOver = true;
-			return;
-		}
+		mBoard[mGuideStonePosition.y][mGuideStonePosition.x] = mMyStone;
+		POINT p = { mGuideStonePosition.x, mGuideStonePosition.y };
+		send(mSendSocket, (const char*)&p, sizeof(p), 0);
 
-		switchTurn();
+		checkGameOver(p);
 	}
 
-	bool GameManager::checkGameOver() const
+	bool GameManager::checkGameOver(POINT& p)
 	{
-		if (checkHorizontal() || checkVertical()
-			|| checkLeftDiagonal() || checkRightDiagonal())
+		if (checkHorizontal(p)
+			|| checkVertical(p)
+			|| checkLeftDiagonal(p)
+			|| checkRightDiagonal(p))
 		{
+			mWinnerStone = mCurrentTurnStone;
+			mbGameOver = true;
+			mbIsMyTurn = false;
 			return true;
 		}
 
+		switchTurn();
 		return false;
 	}
 
-	bool GameManager::checkHorizontal() const
+	bool GameManager::checkHorizontal(POINT& p) const
 	{
 		uint32_t chainingCount = 1;
-		chainingCount += checkWestRecursive(mGuideStonePosition.x - 1, mGuideStonePosition.y);
+		chainingCount += checkWestRecursive(p.x - 1, p.y);
 
 		if (chainingCount == MAX_CHAINING_COUNT)
 		{
 			return true;
 		}
 
-		chainingCount += checkEastRecursive(mGuideStonePosition.x + 1, mGuideStonePosition.y);
+		chainingCount += checkEastRecursive(p.x + 1, p.y);
 
 		if (chainingCount == MAX_CHAINING_COUNT)
 		{
@@ -237,7 +257,7 @@ namespace gomoku
 	{
 		if (x < 0 || x >= LINE_COUNT
 			|| y < 0 || y >= LINE_COUNT
-			|| mBoard[y][x] != mCurrentStoneColor)
+			|| mBoard[y][x] != mCurrentTurnStone)
 		{
 			return 0;
 		}
@@ -249,7 +269,7 @@ namespace gomoku
 	{
 		if (x < 0 || x >= LINE_COUNT
 			|| y < 0 || y >= LINE_COUNT
-			|| mBoard[y][x] != mCurrentStoneColor)
+			|| mBoard[y][x] != mCurrentTurnStone)
 		{
 			return 0;
 		}
@@ -257,17 +277,17 @@ namespace gomoku
 		return checkEastRecursive(x + 1, y) + 1;
 	}
 
-	bool GameManager::checkVertical() const
+	bool GameManager::checkVertical(POINT& p) const
 	{
 		uint32_t chainingCount = 1;
-		chainingCount += checkNorthRecursive(mGuideStonePosition.x, mGuideStonePosition.y - 1);
+		chainingCount += checkNorthRecursive(p.x, p.y - 1);
 
 		if (chainingCount == MAX_CHAINING_COUNT)
 		{
 			return true;
 		}
 
-		chainingCount += checkSouthRecursive(mGuideStonePosition.x, mGuideStonePosition.y + 1);
+		chainingCount += checkSouthRecursive(p.x, p.y + 1);
 
 		if (chainingCount == MAX_CHAINING_COUNT)
 		{
@@ -281,7 +301,7 @@ namespace gomoku
 	{
 		if (x < 0 || x >= LINE_COUNT
 			|| y < 0 || y >= LINE_COUNT
-			|| mBoard[y][x] != mCurrentStoneColor)
+			|| mBoard[y][x] != mCurrentTurnStone)
 		{
 			return 0;
 		}
@@ -293,7 +313,7 @@ namespace gomoku
 	{
 		if (x < 0 || x >= LINE_COUNT
 			|| y < 0 || y >= LINE_COUNT
-			|| mBoard[y][x] != mCurrentStoneColor)
+			|| mBoard[y][x] != mCurrentTurnStone)
 		{
 			return 0;
 		}
@@ -301,17 +321,17 @@ namespace gomoku
 		return checkSouthRecursive(x, y + 1) + 1;
 	}
 
-	bool GameManager::checkLeftDiagonal() const
+	bool GameManager::checkLeftDiagonal(POINT& p) const
 	{
 		uint32_t chainingCount = 1;
-		chainingCount += checkNorthWestRecursive(mGuideStonePosition.x - 1, mGuideStonePosition.y - 1);
+		chainingCount += checkNorthWestRecursive(p.x - 1, p.y - 1);
 
 		if (chainingCount == MAX_CHAINING_COUNT)
 		{
 			return true;
 		}
 
-		chainingCount += checkSouthEastRecursive(mGuideStonePosition.x + 1, mGuideStonePosition.y + 1);
+		chainingCount += checkSouthEastRecursive(p.x + 1, p.y + 1);
 
 		if (chainingCount == MAX_CHAINING_COUNT)
 		{
@@ -325,7 +345,7 @@ namespace gomoku
 	{
 		if (x < 0 || x >= LINE_COUNT
 			|| y < 0 || y >= LINE_COUNT
-			|| mBoard[y][x] != mCurrentStoneColor)
+			|| mBoard[y][x] != mCurrentTurnStone)
 		{
 			return 0;
 		}
@@ -337,7 +357,7 @@ namespace gomoku
 	{
 		if (x < 0 || x >= LINE_COUNT
 			|| y < 0 || y >= LINE_COUNT
-			|| mBoard[y][x] != mCurrentStoneColor)
+			|| mBoard[y][x] != mCurrentTurnStone)
 		{
 			return 0;
 		}
@@ -345,17 +365,17 @@ namespace gomoku
 		return checkSouthEastRecursive(x + 1, y + 1) + 1;
 	}
 
-	bool GameManager::checkRightDiagonal() const
+	bool GameManager::checkRightDiagonal(POINT& p) const
 	{
 		uint32_t chainingCount = 1;
-		chainingCount += checkNorthEastRecursive(mGuideStonePosition.x + 1, mGuideStonePosition.y - 1);
+		chainingCount += checkNorthEastRecursive(p.x + 1, p.y - 1);
 
 		if (chainingCount == MAX_CHAINING_COUNT)
 		{
 			return true;
 		}
 
-		chainingCount += checkSouthWestRecursive(mGuideStonePosition.x - 1, mGuideStonePosition.y + 1);
+		chainingCount += checkSouthWestRecursive(p.x - 1, p.y + 1);
 
 		if (chainingCount == MAX_CHAINING_COUNT)
 		{
@@ -369,7 +389,7 @@ namespace gomoku
 	{
 		if (x < 0 || x >= LINE_COUNT
 			|| y < 0 || y >= LINE_COUNT
-			|| mBoard[y][x] != mCurrentStoneColor)
+			|| mBoard[y][x] != mCurrentTurnStone)
 		{
 			return 0;
 		}
@@ -381,7 +401,7 @@ namespace gomoku
 	{
 		if (x < 0 || x >= LINE_COUNT
 			|| y < 0 || y >= LINE_COUNT
-			|| mBoard[y][x] != mCurrentStoneColor)
+			|| mBoard[y][x] != mCurrentTurnStone)
 		{
 			return 0;
 		}

@@ -1,5 +1,4 @@
 #pragma once
-#include "pch.h"
 #include "GomokuHelper.h"
 #include "eStoneColor.h"
 
@@ -17,13 +16,13 @@ namespace gomoku
 		void AddStone();
 		void SetGuideStonePosition(uint32_t x, uint32_t y);
 
-		int Bind();
-		int FindOppnent(SOCKADDR_IN& out);
-		int ConnectOppnent(SOCKADDR_IN& oppnentAddr);
+		int BindAndListen();
+		int ConnectOpponent();
 
 		inline bool IsValidePosition() const;
 		inline const std::vector<std::vector<eStoneColor>>& GetBoard() const;
-		inline eStoneColor GetCurrentStoneColor() const;
+		inline bool IsMyTurn() const;
+		inline eStoneColor GetStoneColor() const;
 		inline POINT GetGuideStonePosition() const;
 		inline bool IsGameOver() const;
 		inline eStoneColor GetWinnerStone() const;
@@ -35,49 +34,54 @@ namespace gomoku
 		GameManager& operator=(const GameManager* rhs) = delete;
 
 		/* Check gomoku*/
-		bool checkGameOver() const;
-		bool checkHorizontal() const;
+		bool checkGameOver(POINT& p);
+		bool checkHorizontal(POINT& p) const;
 		uint32_t checkWestRecursive(uint32_t x, uint32_t y) const;
 		uint32_t checkEastRecursive(uint32_t x, uint32_t y) const;
 
-		bool checkVertical() const;
+		bool checkVertical(POINT& p) const;
 		uint32_t checkNorthRecursive(uint32_t x, uint32_t y) const;
 		uint32_t checkSouthRecursive(uint32_t x, uint32_t y) const;
 
-		bool checkLeftDiagonal() const;
+		bool checkLeftDiagonal(POINT& p) const;
 		uint32_t checkNorthWestRecursive(uint32_t x, uint32_t y) const;
 		uint32_t checkSouthEastRecursive(uint32_t x, uint32_t y) const;
 
-		bool checkRightDiagonal() const;
+		bool checkRightDiagonal(POINT& p) const;
 		uint32_t checkNorthEastRecursive(uint32_t x, uint32_t y) const;
 		uint32_t checkSouthWestRecursive(uint32_t x, uint32_t y) const;
 
 		inline void switchTurn();
 		void accceptAndReceive();
+		void recvFromServer();
 
 	private:
 		enum
 		{
 			MAX_CHAINING_COUNT = 5,
 			BUFFER_SIZE = 128,
-			LISTEN_SOCK_PORT = 20000,
+			LISTEN_PORT = 20000,
+			OPPNENT_PORT = 21000,
 			SERVER_PORT = 25000,
 		};
 
 		static GameManager* mInstance;
 
-		std::vector<std::vector<eStoneColor>> mBoard;
-		eStoneColor mCurrentStoneColor;
-		eStoneColor mWinnerStoneColor;
-		POINT mGuideStonePosition;
 		bool mbGameOver;
+		bool mbIsMyTurn;
+		std::vector<std::vector<eStoneColor>> mBoard;
+		eStoneColor mMyStone;
+		eStoneColor mCurrentTurnStone;
+		eStoneColor mWinnerStone;
+		POINT mGuideStonePosition;
 
 		SOCKET mListenSocket;
 		SOCKET mServerSocket;
-		SOCKET mOppnentSocket;
+		SOCKET mSendSocket;
 
 		char mBuffer[BUFFER_SIZE] = { 0, };
 
+		std::thread mServerRecvThread;
 		std::thread mAcceptAndReceiveThread;
 	};
 
@@ -92,9 +96,14 @@ namespace gomoku
 		return mBoard;
 	}
 
-	eStoneColor GameManager::GetCurrentStoneColor() const
+	bool GameManager::IsMyTurn() const
 	{
-		return mCurrentStoneColor;
+		return mbIsMyTurn;
+	}
+
+	eStoneColor GameManager::GetStoneColor() const
+	{
+		return mMyStone;
 	}
 
 	POINT GameManager::GetGuideStonePosition() const
@@ -109,12 +118,12 @@ namespace gomoku
 
 	eStoneColor GameManager::GetWinnerStone() const
 	{
-		return mWinnerStoneColor;
+		return mWinnerStone;
 	}
 
 	void GameManager::switchTurn()
 	{
-		int curr = static_cast<int>(mCurrentStoneColor);
-		mCurrentStoneColor = static_cast<eStoneColor>(curr ^ CURR_STONE_CHANGE);
+		mCurrentTurnStone = static_cast<eStoneColor>(static_cast<int>(mCurrentTurnStone) ^ XOR_CHANGE_TURN);
+		mbIsMyTurn ^= XOR_CHANGE_TURN;
 	}
 }
