@@ -1,5 +1,5 @@
 #pragma once
-#include "GomokuHelper.h"
+#include "GomokuDefines.h"
 #include "eStoneColor.h"
 
 namespace gomoku
@@ -52,13 +52,15 @@ namespace gomoku
 		uint32_t checkSouthWestRecursive(uint32_t x, uint32_t y) const;
 
 		inline void switchTurn();
-		void accceptAndReceive();
+		void acceptOppnent();
 		void recvFromServer();
 
 	private:
 		enum
 		{
 			MAX_CHAINING_COUNT = 5,
+			COMPUTER_NAME_SIZE = 16,
+			IP_STR_SIZE = 16,
 			BUFFER_SIZE = 128,
 			LISTEN_PORT = 20000,
 			OPPNENT_PORT = 21000,
@@ -82,7 +84,8 @@ namespace gomoku
 		char mBuffer[BUFFER_SIZE] = { 0, };
 
 		std::thread mServerRecvThread;
-		std::thread mAcceptAndReceiveThread;
+		std::thread mAcceptThread;
+		std::thread mRecvThread;
 	};
 
 	bool GameManager::IsValidePosition() const

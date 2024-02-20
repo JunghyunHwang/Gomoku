@@ -42,10 +42,30 @@ namespace gomoku
 
 	int GameManager::BindAndListen()
 	{
+		// Get ip address by host name
+		wchar_t hostName[COMPUTER_NAME_SIZE] = { 0, };
+		char ipStr[IP_STR_SIZE] = { 0, };
+		ADDRINFOW* hostAddrInfo = NULL;
+		ADDRINFOW hints;
+
+		memset(&hints, 0, sizeof(hints));
+		hints.ai_family = AF_INET;
+		hints.ai_socktype = SOCK_STREAM;
+		hints.ai_protocol = IPPROTO_TCP;
+
+		// Need error handle
+		GetHostNameW(hostName, COMPUTER_NAME_SIZE);
+		GetAddrInfoW(hostName, NULL, &hints, &hostAddrInfo);
+
+		sockaddr_in* addr = reinterpret_cast<sockaddr_in*>(hostAddrInfo->ai_addr);
+		inet_ntop(AF_INET, &addr->sin_addr, ipStr, IP_STR_SIZE);
+		FreeAddrInfoW(hostAddrInfo);
+
+		// Bind
 		SOCKADDR_IN myAddr = { 0, };
 		myAddr.sin_family = AF_INET;
 		myAddr.sin_port = htons(LISTEN_PORT);
-		inet_pton(AF_INET, "192.168.55.6", &myAddr.sin_addr);
+		inet_pton(AF_INET, ipStr, &myAddr.sin_addr);
 
 		if (bind(mListenSocket, (SOCKADDR*)&myAddr, sizeof(myAddr)) == SOCKET_ERROR)
 		{
@@ -57,12 +77,12 @@ namespace gomoku
 			return WSAGetLastError();
 		}
 
-		mAcceptAndReceiveThread = std::thread(&GameManager::accceptAndReceive, this);
+		mAcceptThread = std::thread(&GameManager::acceptOppnent, this);
 
 		return S_OK;
 	}
 
-	void GameManager::accceptAndReceive()
+	void GameManager::acceptOppnent()
 	{
 		SOCKET recvSock;
 		SOCKADDR_IN client = { 0, };

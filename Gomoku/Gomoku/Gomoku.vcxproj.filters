@@ -36,7 +36,7 @@
     <ClInclude Include="GameManager.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="GomokuHelper.h">
+    <ClInclude Include="GomokuDefines.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

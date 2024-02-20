@@ -1,5 +1,5 @@
 #pragma once
-#include "GomokuHelper.h"
+#include "GomokuDefines.h"
 
 namespace gomoku
 {
