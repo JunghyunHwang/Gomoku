@@ -1,118 +1,70 @@
 #include "pch.h"
 #include "eStoneColor.h"
+#include "eButton.h"
 #include "App.h"
 #include "GameManager.h"
+#include "SceneManager.h"
 
 namespace gomoku
 {
 	App* App::mInstance = nullptr;
 	GameManager* App::mGameManager = nullptr;
+	SceneManager* App::mSceneManager = nullptr;
 
-	App::App()
-		: mHinst(nullptr)
-		, mHwnd(nullptr)
-		, mResolution({ NONE, NONE })
-		, mD2DFactory(nullptr)
-		, mRenderTarget(nullptr)
-	{
-	}
+	/*
+		Todo
+		* When Search button click search form.
+		* Delete mResolution
+	*/
 
 	App* App::GetInstance()
 	{
 		if (mInstance == nullptr)
 		{
+			ASSERT(mGameManager == nullptr);
+			ASSERT(mSceneManager == nullptr);
+
 			mInstance = new App();
-			mGameManager = GameManager::GetInstance();
 		}
 
 		return mInstance;
 	}
 
-	HRESULT App::Init(HINSTANCE hInst, HWND hWnd, POINT resolution)
+	HRESULT App::Init(HWND hWnd)
 	{
-		ASSERT(hWnd != NULL);
-		ASSERT(mD2DFactory == nullptr);
-		if (mD2DFactory != nullptr)
-		{
-			return E_FAIL;
-		}
+		mhWnd = hWnd;
 
-		mHinst = hInst;
-		mHwnd = hWnd;
-		mResolution = resolution;
+		mGameManager = GameManager::GetInstance();
+		mSceneManager = SceneManager::GetInstance();
 
-		HRESULT hr = D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, &mD2DFactory);
-		if (SUCCEEDED(hr))
-		{
-			hr = createDeviceResources();
-		}
+		HRESULT hr = mSceneManager->init(hWnd);
 
 		return hr;
 	}
-
-	HRESULT App::createDeviceResources()
-	{
-		ASSERT(mHwnd != NULL);
-		HRESULT hr = S_OK;
-
-		if (mRenderTarget == nullptr)
-		{
-			RECT rt;
-			GetClientRect(mHwnd, &rt);
-
-			D2D1_SIZE_U size = D2D1::SizeU(rt.right - rt.left, rt.bottom - rt.top);
-
-			hr = mD2DFactory->CreateHwndRenderTarget(
-				D2D1::RenderTargetProperties(),
-				D2D1::HwndRenderTargetProperties(mHwnd, size),
-				&mRenderTarget
-			);
-
-			if (SUCCEEDED(hr))
-			{
-				mRenderTarget->CreateSolidColorBrush(D2D1::ColorF(0x00000000, 1.f), &mBrushes[0]); // Black
-				mRenderTarget->CreateSolidColorBrush(D2D1::ColorF(0xffffffff, 1.f), &mBrushes[1]); // White
-				mRenderTarget->CreateSolidColorBrush(D2D1::ColorF(0x00000000, 0.5f), &mBrushes[2]); // Low opacity black
-				mRenderTarget->CreateSolidColorBrush(D2D1::ColorF(0xffffffff, 0.5f), &mBrushes[3]); // Low opacity white
-			}
-		}
-
-		return hr;
-	}
-
-	void App::Resize(uint32_t width, uint32_t height)
-	{
-		ASSERT(mRenderTarget != nullptr);
-		if (mRenderTarget != nullptr)
-		{
-			mRenderTarget->Resize({ width, height });
-		}
-	}
-
+	
 	void App::notifyWinner(eStoneColor winner)
 	{
 		switch (winner)
 		{
 		case eStoneColor::Black:
-			MessageBox(mHwnd, L"Black wins", L"Congratulations!", MB_OK);
+			MessageBox(mhWnd, L"Black wins", L"Congratulations!", MB_OK);
 			break;
 		case eStoneColor::White:
-			MessageBox(mHwnd, L"White wins", L"Congratulations!", MB_OK);
+			MessageBox(mhWnd, L"White wins", L"Congratulations!", MB_OK);
 			break;
 		}
 	}
 
 	void App::Release()
 	{
-		SafeRelease(&mD2DFactory);
-		SafeRelease(&mRenderTarget);
-
-		for (size_t i = 0; i < BRUSH_COUNT; ++i)
-		{
-			SafeRelease(&mBrushes[i]);
-		}
+		mGameManager->release();
+		mSceneManager->release();
+		
+		mGameManager = nullptr;
+		mSceneManager = nullptr;
 
 		delete mInstance;
+		mInstance = nullptr;
 	}
 
 	void App::Run()
@@ -124,8 +76,6 @@ namespace gomoku
 			return;
 		}
 
-		mGameManager->ConnectOpponent();
-
 		MSG msg;
 		while (GetMessage(&msg, NULL, 0, 0))
 		{
@@ -136,84 +86,7 @@ namespace gomoku
 
 	void App::render()
 	{
-		ASSERT(mRenderTarget != nullptr);
-		mRenderTarget->BeginDraw();
-		{
-			mRenderTarget->SetTransform(D2D1::Matrix3x2F::Identity());
-			mRenderTarget->Clear(D2D1::ColorF(0xf5ad42));
-
-
-			// Draw vertical line
-			auto* blackBrush = mBrushes[static_cast<int>(eStoneColor::Black)];
-			auto* lowOpacityBlackBrush = mBrushes[static_cast<int>(eStoneColor::Black) + LOW_OPACITY];
-
-			for (size_t x = 0; x < LINE_COUNT; ++x)
-			{
-				mRenderTarget->DrawLine(
-					D2D1::Point2F(static_cast<float>(XPOS(x)), BOARD_START_POINT),
-					D2D1::Point2F(static_cast<float>(XPOS(x)), YPOS(LINE_COUNT - 1)),
-					blackBrush,
-					static_cast<float>(LINE_WIDTH)
-				);
-			}
-
-			// Draw horizontal line
-			for (size_t y = 0; y < LINE_COUNT; ++y)
-			{
-				mRenderTarget->DrawLine(
-					D2D1::Point2F(BOARD_START_POINT, static_cast<float>(YPOS(y))),
-					D2D1::Point2F(XPOS(LINE_COUNT - 1), static_cast<float>(YPOS(y))),
-					blackBrush,
-					static_cast<float>(LINE_WIDTH)
-				);
-			}
-
-			auto mBoard = mGameManager->GetBoard();
-
-			// Draw GuidStone
-			if (mGameManager->IsMyTurn() && mGameManager->IsValidePosition())
-			{
-				eStoneColor stoneColor = mGameManager->GetStoneColor();
-				POINT currPos = mGameManager->GetGuideStonePosition();
-
-				D2D1_ELLIPSE guideStoneInfo = D2D1::Ellipse(
-					D2D1::Point2F(
-						static_cast<float>(BOARD_START_POINT * (currPos.x + 1)),
-						static_cast<float>(BOARD_START_POINT * (currPos.y + 1))
-					),
-					STONE_RADIUS,
-					STONE_RADIUS
-				);
-
-				mRenderTarget->DrawEllipse(guideStoneInfo, lowOpacityBlackBrush, STONE_STROKE_WIDTH);
-				mRenderTarget->FillEllipse(guideStoneInfo, mBrushes[static_cast<int>(stoneColor) + LOW_OPACITY]);
-			}
-
-			// Draw Board
-			for (size_t y = 0; y < LINE_COUNT; ++y)
-			{
-				for (size_t x = 0; x < LINE_COUNT; ++x)
-				{
-					if (mBoard[y][x] == eStoneColor::None)
-					{
-						continue;
-					}
-
-					D2D1_ELLIPSE stoneInfo = D2D1::Ellipse(
-						D2D1::Point2F(
-							static_cast<float>(BOARD_START_POINT * (x + 1)),
-							static_cast<float>(BOARD_START_POINT * (y + 1))
-						),
-						STONE_RADIUS,
-						STONE_RADIUS
-					);
-
-					mRenderTarget->DrawEllipse(stoneInfo, blackBrush, STONE_STROKE_WIDTH);
-					mRenderTarget->FillEllipse(stoneInfo, mBrushes[static_cast<int>(mBoard[y][x])]);
-				}
-			}
-		}
-		mRenderTarget->EndDraw();
+		mSceneManager->render();
 	}
 
 	LRESULT App::WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
@@ -231,12 +104,6 @@ namespace gomoku
 			}
 
 			mGameManager->SetGuideStonePosition(LOWORD(lParam), HIWORD(lParam));
-#ifdef _DEBUG
-			wchar_t szBuff[50];
-			POINT p = mGameManager->GetGuideStonePosition();
-			swprintf_s(szBuff, L"X: %d / Y: %d / Row: %d / Col: %d", LOWORD(lParam), HIWORD(lParam), p.y, p.x);
-			SetWindowText(mInstance->mHwnd, szBuff);
-#endif
 			break;
 		}
 		case WM_LBUTTONDOWN:
@@ -251,7 +118,28 @@ namespace gomoku
 				mInstance->render();
 				mInstance->notifyWinner(mGameManager->GetWinnerStone());
 				mGameManager->SetNewGame();
+				goto NO_RENDER;
 			}
+			break;
+		case WM_COMMAND:
+		{
+			switch (static_cast<eButton>(wParam))
+			{
+			case eButton::Search:
+				/*
+					Todo
+					* Add Search form. mGameManager->ConnectOpponent();
+				*/
+				MessageBox(hWnd, L"Search Oppnent", L"", MB_OK);
+				break;
+			case eButton::Practice:
+				mSceneManager->changeScene(eScene::Practice);
+				break;
+			case eButton::Exit:
+				mSceneManager->changeScene(eScene::Lobby);
+				break;
+			}
+		}
 			break;
 		case WM_DESTROY:
 			PostQuitMessage(0);
@@ -260,7 +148,7 @@ namespace gomoku
 			return DefWindowProc(hWnd, message, wParam, lParam);
 		}
 
-		mInstance->render();
+		  mInstance->render();
 	NO_RENDER:
 		return 0;
 	}

@@ -1,11 +1,9 @@
 #include "pch.h"
-#include "Gomoku.h"
-#include "GameManager.h"
+#include "GomokuDefines.h"
 #include "App.h"
+#include "Gomoku.h"
 
 using namespace gomoku;
-
-gomoku::App* InitInstance(HINSTANCE, int);
 
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
                      _In_opt_ HINSTANCE hPrevInstance,
@@ -18,60 +16,46 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         return 1;
     }
 
+    ghInst = hInstance;
+
     WNDCLASSEXW wcex;
+    memset(&wcex, 0, sizeof(WNDCLASSEXW));
     wcex.cbSize = sizeof(WNDCLASSEX);
     wcex.style = CS_HREDRAW | CS_VREDRAW;
     wcex.lpfnWndProc = App::WndProc;
-    wcex.cbClsExtra = 0;
-    wcex.cbWndExtra = 0;
     wcex.hInstance = hInstance;
     wcex.hIcon = LoadIcon(hInstance, MAKEINTRESOURCE(IDI_GOMOKU));
     wcex.hCursor = LoadCursor(nullptr, IDC_ARROW);
     wcex.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
-    wcex.lpszMenuName = NULL;
     wcex.lpszClassName = L"Gomoku";
     wcex.hIconSm = LoadIcon(wcex.hInstance, MAKEINTRESOURCE(IDI_SMALL));
     RegisterClassExW(&wcex);
 
-    App* app = InitInstance(hInstance, nCmdShow);
-    {
-        if (app == nullptr)
-        {
-            return FALSE;
-        }
+    HWND hWnd = CreateWindowW(
+        L"Gomoku",
+        L"Gomoku",
+        WS_OVERLAPPEDWINDOW,
+        WINDOW_START_X, WINDOW_START_Y,
+        RESOLUTION, RESOLUTION,
+        nullptr, nullptr, hInstance, nullptr
+    );
 
-        app->Run();
+    if (!hWnd)
+    {
+        return false;
     }
+
+    App* app = gomoku::App::GetInstance();
+    if (FAILED(app->Init(hWnd)))
+    {
+        app->Release();
+        return false;
+    }
+    ShowWindow(hWnd, nCmdShow);
+
+    app->Run();
     app->Release();
 
     WSACleanup();
     return 0;
-}
-
-gomoku::App* InitInstance(HINSTANCE hInstance, int nCmdShow)
-{
-   HWND hWnd = CreateWindowW(
-       L"Gomoku",
-       L"Gomoku",
-       WS_OVERLAPPEDWINDOW,
-       500, 200, 800, 800,
-       nullptr, nullptr, hInstance, nullptr
-   );
-
-   if (!hWnd)
-   {
-      return FALSE;
-   }
-
-   App* app = gomoku::App::GetInstance();
-
-   if (FAILED(app->Init(hInstance, hWnd, POINT{ RESOLUTION, RESOLUTION })))
-   {
-       app->Release();
-       return nullptr;
-   }
-
-   ShowWindow(hWnd, nCmdShow);
-
-   return app;
 }

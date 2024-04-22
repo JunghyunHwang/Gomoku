@@ -130,18 +130,29 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="App.h" />
+    <ClInclude Include="eButton.h" />
+    <ClInclude Include="eScene.h" />
     <ClInclude Include="eStoneColor.h" />
     <ClInclude Include="GameManager.h" />
     <ClInclude Include="Gomoku.h" />
     <ClInclude Include="GomokuDefines.h" />
+    <ClInclude Include="Macro.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="Resource.h" />
+    <ClInclude Include="Scene.h" />
+    <ClInclude Include="SceneLobby.h" />
+    <ClInclude Include="SceneManager.h" />
+    <ClInclude Include="SceneMatching.h" />
     <ClInclude Include="targetver.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="App.cpp" />
     <ClCompile Include="GameManager.cpp" />
     <ClCompile Include="Gomoku.cpp" />
+    <ClCompile Include="Scene.cpp" />
+    <ClCompile Include="SceneLobby.cpp" />
+    <ClCompile Include="SceneManager.cpp" />
+    <ClCompile Include="SceneMatching.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="Gomoku.rc" />

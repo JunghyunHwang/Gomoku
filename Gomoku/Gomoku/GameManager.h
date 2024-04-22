@@ -1,14 +1,12 @@
 #pragma once
-#include "GomokuDefines.h"
 #include "eStoneColor.h"
 
 namespace gomoku
 {
-	enum class eStoneColor;
-	class Socket;
-
+	class App;
 	class GameManager final
 	{
+		friend App;
 	public:
 		static GameManager* GetInstance();
 
@@ -23,15 +21,21 @@ namespace gomoku
 		inline const std::vector<std::vector<eStoneColor>>& GetBoard() const;
 		inline bool IsMyTurn() const;
 		inline eStoneColor GetStoneColor() const;
-		inline POINT GetGuideStonePosition() const;
+		inline const POINT& GetGuideStonePosition() const;
 		inline bool IsGameOver() const;
 		inline eStoneColor GetWinnerStone() const;
 
 	private:
 		GameManager();
-		~GameManager();
+		~GameManager() = default;
 		GameManager(const GameManager* other) = delete;
 		GameManager& operator=(const GameManager* rhs) = delete;
+
+		inline void switchTurn();
+		void acceptOppnent();
+		void recvFromServer();
+		void recvFromOpponent(SOCKET recvSock);
+		void release();
 
 		/* Check gomoku*/
 		bool checkGameOver(POINT& p);
@@ -51,10 +55,6 @@ namespace gomoku
 		uint32_t checkNorthEastRecursive(uint32_t x, uint32_t y) const;
 		uint32_t checkSouthWestRecursive(uint32_t x, uint32_t y) const;
 
-		inline void switchTurn();
-		void acceptOppnent();
-		void recvFromServer();
-
 	private:
 		enum
 		{
@@ -68,10 +68,10 @@ namespace gomoku
 		};
 
 		static GameManager* mInstance;
+		static BOARD mBoard;
 
 		bool mbGameOver;
 		bool mbIsMyTurn;
-		std::vector<std::vector<eStoneColor>> mBoard;
 		eStoneColor mMyStone;
 		eStoneColor mCurrentTurnStone;
 		eStoneColor mWinnerStone;
@@ -109,7 +109,7 @@ namespace gomoku
 		return mMyStone;
 	}
 
-	POINT GameManager::GetGuideStonePosition() const
+	const POINT& GameManager::GetGuideStonePosition() const
 	{
 		return mGuideStonePosition;
 	}

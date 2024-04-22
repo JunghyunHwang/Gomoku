@@ -28,10 +28,11 @@
 #include <winSock2.h>
 #include <ws2tcpip.h>
 
+#include "GomokuDefines.h"
+#include "Macro.h"
+
 #ifdef _DEBUG
-#define ASSERT(expr)	if (!(expr)) { \
-							__debugbreak(); \
-						}
+#define ASSERT(expr)	if (!(expr)) { __debugbreak(); }
 #else
 #define ASSERT(expr)
 #endif

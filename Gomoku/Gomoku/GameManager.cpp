@@ -4,7 +4,13 @@
 
 namespace gomoku
 {
+	/*
+		Todo
+		* When socket create fail
+	*/
+
 	GameManager* GameManager::mInstance = nullptr;
+	BOARD GameManager::mBoard(LINE_COUNT, std::vector<eStoneColor>(LINE_COUNT, eStoneColor::None));
 
 	GameManager* GameManager::GetInstance()
 	{
@@ -26,18 +32,8 @@ namespace gomoku
 		, mListenSocket(socket(AF_INET, SOCK_STREAM, 0))
 		, mServerSocket(socket(AF_INET, SOCK_STREAM, 0))
 		, mSendSocket(socket(AF_INET, SOCK_STREAM, 0))
-		, mBoard(LINE_COUNT, std::vector<eStoneColor>(LINE_COUNT, eStoneColor::None))
 	{
 		// When fail to create socket
-	}
-
-	GameManager::~GameManager()
-	{
-		closesocket(mListenSocket);
-		closesocket(mServerSocket);
-		closesocket(mSendSocket);
-
-		delete mInstance;
 	}
 
 	int GameManager::BindAndListen()
@@ -78,7 +74,6 @@ namespace gomoku
 		}
 
 		mAcceptThread = std::thread(&GameManager::acceptOppnent, this);
-
 		return S_OK;
 	}
 
@@ -88,8 +83,14 @@ namespace gomoku
 		SOCKADDR_IN client = { 0, };
 		int clientAddrSize = sizeof(client);
 
-		recvSock = accept(mListenSocket, (SOCKADDR*)&client, &clientAddrSize);
+		while ((recvSock = accept(mListenSocket, (SOCKADDR*)&client, &clientAddrSize)))
+		{
+			mRecvThread = std::thread(&GameManager::recvFromOpponent, this, recvSock);
+		}
+	}
 
+	void GameManager::recvFromOpponent(SOCKET recvSock)
+	{
 		POINT p;
 		while (recv(recvSock, (char*)&p, sizeof(p), 0) > 0)
 		{
@@ -98,6 +99,7 @@ namespace gomoku
 			ASSERT(p.y >= 0 && p.y < LINE_COUNT);
 
 			mBoard[p.y][p.x] = mCurrentTurnStone;
+
 			App::GetInstance()->render();
 
 			if (checkGameOver(p))
@@ -111,12 +113,22 @@ namespace gomoku
 		closesocket(mSendSocket);
 	}
 
+	void GameManager::release()
+	{
+		closesocket(mListenSocket);
+		closesocket(mServerSocket);
+		closesocket(mSendSocket);
+
+		delete mInstance;
+		mInstance = nullptr;
+	}
+
 	int GameManager::ConnectOpponent()
 	{
 		SOCKADDR_IN serverAddr = { 0, };
 		serverAddr.sin_family = AF_INET;
 		serverAddr.sin_port = htons(SERVER_PORT);
-		inet_pton(AF_INET, "192.168.55.6", &serverAddr.sin_addr);
+		inet_pton(AF_INET, "192.168.55.6", &serverAddr.sin_addr); // My server address
 
 		if (connect(mServerSocket, (SOCKADDR*)&serverAddr, sizeof(serverAddr)) == SOCKET_ERROR)
 		{
@@ -124,7 +136,6 @@ namespace gomoku
 		}
 
 		mServerRecvThread = std::thread(&GameManager::recvFromServer, this);
-
 		return S_OK;
 	}
 
@@ -135,11 +146,14 @@ namespace gomoku
 		oppnentAddr.sin_port = htons(OPPNENT_PORT);
 
 		recv(mServerSocket, mBuffer, BUFFER_SIZE, 0); // Receive Oppnent address
+		closesocket(mServerSocket);
 
 		char* tokenized = strtok(mBuffer, DELIM);
+		ASSERT(tokenized != NULL);
 		mMyStone = static_cast<eStoneColor>(atoi(tokenized));
 
 		tokenized = strtok(NULL, DELIM);
+		ASSERT(tokenized != NULL);
 		oppnentAddr.sin_addr.S_un.S_addr = atoi(tokenized);
 
 		ASSERT(strtok(NULL, DELIM) == NULL);
@@ -196,17 +210,19 @@ namespace gomoku
 		int8_t col = NOMALIZED_X / LINE_INTERVAL;
 		int8_t row = NOMALIZED_Y / LINE_INTERVAL;
 
+		// if cursor goes over half line interval.
 		int8_t colAlpha = NOMALIZED_X % LINE_INTERVAL;
 		int8_t rowAlpha = NOMALIZED_Y % LINE_INTERVAL;
-
 		colAlpha -= static_cast<int8_t>(HALF_LINE_INTERVAL);
 		colAlpha >>= 7;
 		colAlpha += 1;
-
 		rowAlpha -= static_cast<int8_t>(HALF_LINE_INTERVAL);
 		rowAlpha >>= 7;
 		rowAlpha += 1;
 
+		// Alpha value always 0 or 1
+		ASSERT(colAlpha == 0 || colAlpha == 1);
+		ASSERT(rowAlpha == 0 || rowAlpha == 1);
 		col += colAlpha;
 		row += rowAlpha;
 
@@ -236,6 +252,7 @@ namespace gomoku
 		checkGameOver(p);
 	}
 
+	/* Check gomoku*/
 	bool GameManager::checkGameOver(POINT& p)
 	{
 		if (checkHorizontal(p)
