@@ -1,11 +1,8 @@
 #pragma once
 #include "GomokuDefines.h"
-#include "SceneManager.h"
 
 namespace gomoku
 {
-	class SceneManager;
-
 	class Scene
 	{
 	public:
@@ -24,7 +21,6 @@ namespace gomoku
 		void redrawButtons() const;
 
 	protected:
-		static SceneManager* mSceneManager;
 		std::vector<HWND> mButtons;
 	};
 

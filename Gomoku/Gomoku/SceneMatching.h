@@ -20,7 +20,5 @@ namespace gomoku
 			STONE_STROKE_WIDTH = 2,
 			LOW_OPACITY = 2,
 		};
-
-		static GameManager* mGameManager;
 	};
 }

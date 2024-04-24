@@ -1,7 +1,12 @@
 #pragma once
 #include "eScene.h"
 #include "GomokuDefines.h"
+#include "Macro.h"
+#include "eButton.h"
 
+#include "Scene.h"
+#include "SceneLobby.h"
+#include "SceneMatching.h"
 /*
 	TODO
 	* Add window resize
@@ -21,24 +26,24 @@ namespace gomoku
 		friend SceneLobby;
 		friend SceneMatching;
 	public:
-		static SceneManager* GetInstance();
-		
+		static inline const eScene& GetCurrentScene();
 	private:
-		SceneManager();
-		~SceneManager() = default;
-
-		HRESULT init(HWND);
-		void release();
-		inline RENDER_TARGET* getRenderTaget();
-		inline SOLID_BRUSH** getBrushes();
-
-		void render();
-		inline void changeScene(const eScene& type);
-		inline const eScene& GetCurrentScene() const;
+		SceneManager() = delete;
+		~SceneManager() = delete;
+		SceneManager(const SceneManager& other) = delete;
+		SceneManager& operator=(const SceneManager& rhs) = delete;
 
 	private:
-		static SceneManager* mInstance;
+		static HRESULT init(HWND);
+		static void release();
 
+		static inline void render();
+		static inline void changeScene(const eScene& type);
+
+		static inline RENDER_TARGET* getRenderTaget();
+		static inline SOLID_BRUSH** getBrushes();
+
+	private:
 		enum
 		{
 			STONE_STROKE_WIDTH = 2,
@@ -46,14 +51,27 @@ namespace gomoku
 			BRUSH_COUNT = 4,
 			SCENE_COUNT = static_cast<int>(eScene::Count),
 		};
-		ID2D1Factory* mD2DFactory;
-		RENDER_TARGET* mRenderTarget;
-		SOLID_BRUSH* mBrushes[BRUSH_COUNT];
 
-		HWND mhWnd;
-		Scene* mScenes[SCENE_COUNT];
-		eScene mCurrentScene;
+		static ID2D1Factory* mD2DFactory;
+		static RENDER_TARGET* mRenderTarget;
+		static SOLID_BRUSH* mBrushes[BRUSH_COUNT];
+
+		static HWND mhWnd;
+		static eScene mCurrentScene;
+		static Scene* mScenes[SCENE_COUNT];
 	};
+
+	void SceneManager::render()
+	{
+		mScenes[ENUM_CAST_INT(mCurrentScene)]->Render();
+	}
+
+	void SceneManager::changeScene(const eScene& type)
+	{
+		mScenes[ENUM_CAST_INT(mCurrentScene)]->HideButtons();
+		mCurrentScene = type;
+		mScenes[ENUM_CAST_INT(mCurrentScene)]->ShowButtons();
+	}
 
 	RENDER_TARGET* SceneManager::getRenderTaget()
 	{
@@ -67,7 +85,7 @@ namespace gomoku
 		return mBrushes;
 	}
 
-	const eScene& SceneManager::GetCurrentScene() const
+	const eScene& SceneManager::GetCurrentScene()
 	{
 		return mCurrentScene;
 	}

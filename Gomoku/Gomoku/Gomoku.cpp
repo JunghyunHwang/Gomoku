@@ -42,20 +42,21 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
     if (!hWnd)
     {
-        return false;
+        goto WSA_CLEAN;
     }
 
-    App* app = gomoku::App::GetInstance();
-    if (FAILED(app->Init(hWnd)))
+    if (FAILED(App::Init(hWnd)))
     {
-        app->Release();
-        return false;
+        goto APP_RELEASE;
     }
+
     ShowWindow(hWnd, nCmdShow);
+    App::Run();
 
-    app->Run();
-    app->Release();
+APP_RELEASE:
+    App::Release();
 
+WSA_CLEAN:
     WSACleanup();
     return 0;
 }

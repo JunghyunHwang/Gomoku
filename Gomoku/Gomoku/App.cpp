@@ -7,38 +7,27 @@
 
 namespace gomoku
 {
-	App* App::mInstance = nullptr;
-	GameManager* App::mGameManager = nullptr;
-	SceneManager* App::mSceneManager = nullptr;
+	HWND App::mhWnd = 0;
 
 	/*
 		Todo
+		* How to make singleton class in cpp
 		* When Search button click search form.
 		* Delete mResolution
 	*/
-
-	App* App::GetInstance()
-	{
-		if (mInstance == nullptr)
-		{
-			ASSERT(mGameManager == nullptr);
-			ASSERT(mSceneManager == nullptr);
-
-			mInstance = new App();
-		}
-
-		return mInstance;
-	}
 
 	HRESULT App::Init(HWND hWnd)
 	{
 		mhWnd = hWnd;
 
-		mGameManager = GameManager::GetInstance();
-		mSceneManager = SceneManager::GetInstance();
+		HRESULT hr = GameManager::init();
+		if (FAILED(hr))
+		{
+			// TODO: When initialization fail
+			return hr;
+		}
 
-		HRESULT hr = mSceneManager->init(hWnd);
-
+		hr = SceneManager::init(hWnd);
 		return hr;
 	}
 	
@@ -57,19 +46,13 @@ namespace gomoku
 
 	void App::Release()
 	{
-		mGameManager->release();
-		mSceneManager->release();
-		
-		mGameManager = nullptr;
-		mSceneManager = nullptr;
-
-		delete mInstance;
-		mInstance = nullptr;
+		GameManager::release();
+		SceneManager::release();
 	}
 
 	void App::Run()
 	{
-		int iResult = mGameManager->BindAndListen();
+		int iResult = GameManager::BindAndListen();
 		if (iResult != 0)
 		{
 			std::cout << "ERROR: Failed to Bind with error code: " << iResult << std::endl;
@@ -86,7 +69,7 @@ namespace gomoku
 
 	void App::render()
 	{
-		mSceneManager->render();
+		SceneManager::render();
 	}
 
 	LRESULT App::WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
@@ -98,31 +81,35 @@ namespace gomoku
 			break;
 		case WM_MOUSEMOVE:
 		{
-			if (mGameManager->IsGameOver())
+			switch (SceneManager::GetCurrentScene())
 			{
-				goto NO_RENDER;
+			case eScene::Matching:
+				GameManager::SetGuideStonePosition(LOWORD(lParam), HIWORD(lParam));
+				break;
+			case eScene::Lobby:
+				return NO_RENDER;
+			default:
+				ASSERT(false); // message: Unknown scene type
+				return NO_RENDER;
 			}
-
-			mGameManager->SetGuideStonePosition(LOWORD(lParam), HIWORD(lParam));
 			break;
 		}
 		case WM_LBUTTONDOWN:
-			if (mGameManager->IsGameOver())
+			if (GameManager::IsGameOver())
 			{
-				goto NO_RENDER;
+				return NO_RENDER;
 			}
 
-			mGameManager->AddStone();
-			if (mGameManager->IsGameOver())
+			GameManager::AddStone();
+			if (GameManager::IsGameOver())
 			{
-				mInstance->render();
-				mInstance->notifyWinner(mGameManager->GetWinnerStone());
-				mGameManager->SetNewGame();
-				goto NO_RENDER;
+				render();
+				notifyWinner(GameManager::GetWinnerStone());
+				GameManager::SetNewGame();
+				return NO_RENDER;
 			}
 			break;
 		case WM_COMMAND:
-		{
 			switch (static_cast<eButton>(wParam))
 			{
 			case eButton::Search:
@@ -133,23 +120,23 @@ namespace gomoku
 				MessageBox(hWnd, L"Search Oppnent", L"", MB_OK);
 				break;
 			case eButton::Practice:
-				mSceneManager->changeScene(eScene::Practice);
+				GameManager::SetNewGame();
+				SceneManager::changeScene(eScene::Matching);
 				break;
 			case eButton::Exit:
-				mSceneManager->changeScene(eScene::Lobby);
+				GameManager::InitGame();
+				SceneManager::changeScene(eScene::Lobby);
 				break;
 			}
-		}
 			break;
 		case WM_DESTROY:
 			PostQuitMessage(0);
-			goto NO_RENDER;
+			return NO_RENDER;
 		default:
 			return DefWindowProc(hWnd, message, wParam, lParam);
 		}
 
-		  mInstance->render();
-	NO_RENDER:
+		render();
 		return 0;
 	}
 }

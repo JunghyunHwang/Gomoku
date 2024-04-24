@@ -50,9 +50,6 @@
     <ClInclude Include="Scene.h">
       <Filter>Scene</Filter>
     </ClInclude>
-    <ClInclude Include="SceneManager.h">
-      <Filter>Scene</Filter>
-    </ClInclude>
     <ClInclude Include="Macro.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -61,6 +58,9 @@
     </ClInclude>
     <ClInclude Include="SceneMatching.h">
       <Filter>Scene</Filter>
+    </ClInclude>
+    <ClInclude Include="SceneManager.h">
+      <Filter>App</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -76,14 +76,14 @@
     <ClCompile Include="Scene.cpp">
       <Filter>Scene</Filter>
     </ClCompile>
-    <ClCompile Include="SceneManager.cpp">
-      <Filter>Scene</Filter>
-    </ClCompile>
     <ClCompile Include="SceneLobby.cpp">
       <Filter>Scene</Filter>
     </ClCompile>
     <ClCompile Include="SceneMatching.cpp">
       <Filter>Scene</Filter>
+    </ClCompile>
+    <ClCompile Include="SceneManager.cpp">
+      <Filter>App</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

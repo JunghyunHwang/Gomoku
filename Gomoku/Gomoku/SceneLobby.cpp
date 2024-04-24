@@ -3,14 +3,9 @@
 
 namespace gomoku
 {
-	SceneLobby::SceneLobby()
-		: Scene()
-	{
-	}
-
 	void SceneLobby::Render()
 	{
-		RENDER_TARGET* renderTarget = mSceneManager->getRenderTaget();
+		RENDER_TARGET* renderTarget = SceneManager::getRenderTaget();
 		ASSERT(renderTarget != nullptr);
 
 		renderTarget->BeginDraw();

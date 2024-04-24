@@ -21,9 +21,10 @@ static HINSTANCE ghInst;
 
 #define DELIM ","
 
-#define BOARD_COLOR 0xF6F2E6
+#define NO_RENDER			0
+#define BOARD_COLOR			0xF6F2E6
 
-#define BOARD		std::vector<std::vector<eStoneColor>>
-#define RENDER_TARGET ID2D1HwndRenderTarget
-#define SOLID_BRUSH ID2D1SolidColorBrush
+#define BOARD				std::vector<std::vector<eStoneColor>>
+#define RENDER_TARGET		ID2D1HwndRenderTarget
+#define SOLID_BRUSH			ID2D1SolidColorBrush
 

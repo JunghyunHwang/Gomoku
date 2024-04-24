@@ -15,10 +15,9 @@ namespace gomoku
 	{
 		friend GameManager;
 	public:
-		static App* GetInstance();
-		HRESULT Init(HWND);
-		void Run();
-		void Release();
+		static HRESULT Init(HWND);
+		static void Run();
+		static void Release();
 
 		static LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
 
@@ -29,14 +28,10 @@ namespace gomoku
 		App& operator=(const App* rhs) = delete;
 
 		// D2D1
-		void render();
-		void notifyWinner(eStoneColor);
+		static void render();
+		static void notifyWinner(eStoneColor);
 
 	private:
-		static App* mInstance;
-		static GameManager* mGameManager;
-		static SceneManager* mSceneManager;
-
-		HWND mhWnd;
+		static HWND mhWnd;
 	};
 }

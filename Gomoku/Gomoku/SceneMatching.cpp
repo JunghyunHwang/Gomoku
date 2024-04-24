@@ -5,12 +5,10 @@
 
 namespace gomoku
 {
-	GameManager* SceneMatching::mGameManager = GameManager::GetInstance();
-
 	void SceneMatching::Render()
 	{
-		RENDER_TARGET* renderTarget = mSceneManager->getRenderTaget();
-		SOLID_BRUSH** brushes = mSceneManager->getBrushes();
+		RENDER_TARGET* renderTarget = SceneManager::getRenderTaget();
+		SOLID_BRUSH** brushes = SceneManager::getBrushes();
 		ASSERT(renderTarget != nullptr);
 
 		renderTarget->BeginDraw();
@@ -43,18 +41,24 @@ namespace gomoku
 				);
 			}
 
-			const BOARD& board = mGameManager->GetBoard();
+			const BOARD& board = GameManager::GetBoard();
 
 			// Draw guide stone
-			if (mGameManager->IsMyTurn() && mGameManager->IsValidePosition())
+			if (GameManager::IsMyTurn() && GameManager::IsValidePosition())
 			{
-				eStoneColor stoneColor = mGameManager->GetStoneColor();
-				const POINT& currPos = mGameManager->GetGuideStonePosition();
+				eStoneColor stoneColor = GameManager::GetStoneColor();
+				const POINT& currPos = GameManager::GetGuideStonePosition();
 
+				wchar_t buff[20];
+
+#ifdef _DEBUG
+				wsprintf(buff, L"X: %d / Y: %d", currPos.x, currPos.y);
+				SetWindowText(SceneManager::mhWnd, buff);
+#endif
 				D2D1_ELLIPSE guideStoneInfo = D2D1::Ellipse(
 					D2D1::Point2F(
-						static_cast<float>(BOARD_START_POINT * (currPos.x + 1)),
-						static_cast<float>(BOARD_START_POINT * (currPos.y + 1))
+						static_cast<float>(LINE_INTERVAL * currPos.x + BOARD_START_POINT),
+						static_cast<float>(LINE_INTERVAL * currPos.y + BOARD_START_POINT)
 					),
 					STONE_RADIUS,
 					STONE_RADIUS
@@ -76,8 +80,8 @@ namespace gomoku
 
 					D2D1_ELLIPSE stoneInfo = D2D1::Ellipse(
 						D2D1::Point2F(
-							static_cast<float>(BOARD_START_POINT * (x + 1)),
-							static_cast<float>(BOARD_START_POINT * (y + 1))
+							static_cast<float>(LINE_INTERVAL * x + BOARD_START_POINT),
+							static_cast<float>(LINE_INTERVAL * y + BOARD_START_POINT)
 						),
 						STONE_RADIUS,
 						STONE_RADIUS

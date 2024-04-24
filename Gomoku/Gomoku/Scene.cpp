@@ -4,8 +4,6 @@
 
 namespace gomoku
 {
-	SceneManager* Scene::mSceneManager = SceneManager::GetInstance();
-
 	Scene::Scene()
 	{
 		mButtons.reserve(static_cast<int>(eButton::Count));

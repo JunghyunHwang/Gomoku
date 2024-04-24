@@ -19,7 +19,7 @@
 #include <thread>
 
 // Direct2D
-#pragma comment(lib, "d2d1.lib")
+// #pragma comment(lib, "d2d1.lib")
 #include <d2d1.h>
 #include <d2d1helper.h>
 

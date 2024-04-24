@@ -1,73 +1,22 @@
 #include "pch.h"
-#include "Macro.h"
-#include "eButton.h"
-
 #include "SceneManager.h"
-#include "Scene.h"
-#include "SceneLobby.h"
-#include "ScenePractice.h"
-#include "SceneMatching.h"
 
 namespace gomoku
 {
-	SceneManager* SceneManager::mInstance = nullptr;
+	ID2D1Factory* SceneManager::mD2DFactory = nullptr;
+	RENDER_TARGET* SceneManager::mRenderTarget = nullptr;
+	SOLID_BRUSH* SceneManager::mBrushes[BRUSH_COUNT] = { nullptr, };
 
-	SceneManager* SceneManager::GetInstance()
-	{
-		if (mInstance == nullptr)
-		{
-			mInstance = new SceneManager();
-		}
-
-		return mInstance;
-	}
-
-	SceneManager::SceneManager()
-		: mD2DFactory(nullptr)
-		, mRenderTarget(nullptr)
-		, mhWnd(0)
-		, mCurrentScene(eScene::Lobby)
-	{
-		memset(mBrushes, 0, sizeof(mBrushes));
-		memset(mScenes, 0, sizeof(mScenes));
-	}
-
-	void SceneManager::release()
-	{
-		for (size_t i = 0; i < SCENE_COUNT; ++i)
-		{
-			delete mScenes[i];
-		}
-
-		for (size_t i = 0; i < BRUSH_COUNT; ++i)
-		{
-			SafeRelease(&mBrushes[i]);
-		}
-
-		SafeRelease(&mD2DFactory);
-		SafeRelease(&mRenderTarget);
-	}
-
-	void SceneManager::render()
-	{
-		mScenes[ENUM_CAST_INT(mCurrentScene)]->Render();
-	}
-
-	void SceneManager::changeScene(const eScene& type)
-	{
-		int prev = ENUM_CAST_INT(mCurrentScene);
-		mCurrentScene = type;
-
-		mScenes[prev]->HideButtons();
-		mScenes[ENUM_CAST_INT(mCurrentScene)]->ShowButtons();
-	}
+	HWND SceneManager::mhWnd = 0;
+	eScene SceneManager::mCurrentScene = eScene::Lobby;
+	Scene* SceneManager::mScenes[SCENE_COUNT] = { nullptr, };
 
 	HRESULT SceneManager::init(HWND hWnd)
 	{
 		ASSERT(hWnd != 0);
 		ASSERT(mD2DFactory == nullptr);
 
-		if (mD2DFactory == nullptr)
+		if (mD2DFactory != nullptr)
 		{
 			return E_FAIL;
 		}
@@ -107,23 +56,24 @@ namespace gomoku
 			switch (static_cast<eScene>(i))
 			{
 			case eScene::Lobby:
+			{
 				mScenes[i] = new SceneLobby();
-				
+
 				HWND search = CreateWindow(L"button", L"Search", WS_CHILD | WS_VISIBLE, rt.right / 2 - 130, rt.bottom / 2, 100, 30, mhWnd, (HMENU)eButton::Search, ghInst, NULL);
 				HWND practice = CreateWindow(L"button", L"혼자 하기", WS_CHILD | WS_VISIBLE, rt.right / 2 + 20, rt.bottom / 2, 100, 30, mhWnd, (HMENU)eButton::Practice, ghInst, NULL);
-				
+
 				mScenes[i]->AddButton(search);
 				mScenes[i]->AddButton(practice);
-				break;
-			case eScene::Practice:
-				mScenes[i] = new ScenePractice();
-				break;
+			}
+			break;
 			case eScene::Matching:
+			{
 				mScenes[i] = new SceneMatching();
 
 				HWND exit = CreateWindow(L"button", L"나가기", WS_CHILD | WS_VISIBLE, rt.right - 60, rt.bottom - 40, 50, 30, mhWnd, (HMENU)eButton::Exit, ghInst, NULL);
 				mScenes[i]->AddButton(exit);
-				break;
+			}
+			break;
 			default:
 				ASSERT(false);
 				hr = E_FAIL;
@@ -132,5 +82,21 @@ namespace gomoku
 		}
 
 		return hr;
+	}
+
+	void SceneManager::release()
+	{
+		SafeRelease(&mD2DFactory);
+		SafeRelease(&mRenderTarget);
+
+		for (size_t i = 0; i < BRUSH_COUNT; ++i)
+		{
+			 SafeRelease(&mBrushes[i]);
+		}
+
+		for (size_t i = 0; i < SCENE_COUNT; ++i)
+		{
+			delete mScenes[i];
+		}
 	}
 }

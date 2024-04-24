@@ -9,31 +9,66 @@ namespace gomoku
 		* When socket create fail
 	*/
 
-	GameManager* GameManager::mInstance = nullptr;
 	BOARD GameManager::mBoard(LINE_COUNT, std::vector<eStoneColor>(LINE_COUNT, eStoneColor::None));
+	SOCKET GameManager::mListenSocket = INVALID_SOCKET;
+	SOCKET GameManager::mServerSocket = INVALID_SOCKET;
+	SOCKET GameManager::mSendSocket = INVALID_SOCKET;
 
-	GameManager* GameManager::GetInstance()
+	bool GameManager::mbGameOver = true;
+	bool GameManager::mbIsMyTurn = false;
+	eStoneColor GameManager::mMyStone = eStoneColor::Black;
+	eStoneColor GameManager::mCurrentTurnStone = eStoneColor::None;
+	eStoneColor GameManager::mWinnerStone = eStoneColor::None;
+	POINT GameManager::mGuideStonePosition = { NONE, NONE };
+
+	char GameManager::mBuffer[BUFFER_SIZE] = { 0, };
+
+	std::thread GameManager::mServerRecvThread;
+	std::thread GameManager::mAcceptThread;
+	std::thread GameManager::mRecvThread;
+
+	HRESULT GameManager::init()
 	{
-		if (mInstance == nullptr)
+		HRESULT hr = S_OK;
+
+		mListenSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+		if (mListenSocket == INVALID_SOCKET)
 		{
-			mInstance = new GameManager();
+			hr = E_FAIL;
+			goto FAIL_RETURN;
 		}
 
-		return mInstance;
+		mServerSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+		if (mServerSocket == INVALID_SOCKET)
+		{
+			closesocket(mListenSocket);
+
+			hr = E_FAIL;
+			goto FAIL_RETURN;
+		}
+
+		mSendSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+		if (mSendSocket == INVALID_SOCKET)
+		{
+			closesocket(mListenSocket);
+			closesocket(mServerSocket);
+			
+			hr = E_FAIL;
+		}
+
+	FAIL_RETURN:
+		return hr;
 	}
 
-	GameManager::GameManager()
-		: mMyStone(eStoneColor::None)
-		, mCurrentTurnStone(eStoneColor::None)
-		, mWinnerStone(eStoneColor::None)
-		, mGuideStonePosition({ NONE, NONE })
-		, mbGameOver(true)
-		, mbIsMyTurn(false)
-		, mListenSocket(socket(AF_INET, SOCK_STREAM, 0))
-		, mServerSocket(socket(AF_INET, SOCK_STREAM, 0))
-		, mSendSocket(socket(AF_INET, SOCK_STREAM, 0))
+	void GameManager::release()
 	{
-		// When fail to create socket
+		closesocket(mListenSocket);
+		closesocket(mServerSocket);
+		closesocket(mSendSocket);
+
+		mListenSocket = INVALID_SOCKET;
+		mServerSocket = INVALID_SOCKET;
+		mSendSocket = INVALID_SOCKET;
 	}
 
 	int GameManager::BindAndListen()
@@ -73,7 +108,7 @@ namespace gomoku
 			return WSAGetLastError();
 		}
 
-		mAcceptThread = std::thread(&GameManager::acceptOppnent, this);
+		mAcceptThread = std::thread(&GameManager::acceptOppnent);
 		return S_OK;
 	}
 
@@ -85,7 +120,7 @@ namespace gomoku
 
 		while ((recvSock = accept(mListenSocket, (SOCKADDR*)&client, &clientAddrSize)))
 		{
-			mRecvThread = std::thread(&GameManager::recvFromOpponent, this, recvSock);
+			mRecvThread = std::thread(&GameManager::recvFromOpponent, recvSock);
 		}
 	}
 
@@ -100,27 +135,17 @@ namespace gomoku
 
 			mBoard[p.y][p.x] = mCurrentTurnStone;
 
-			App::GetInstance()->render();
+			App::render();
 
 			if (checkGameOver(p))
 			{
-				App::GetInstance()->notifyWinner(mWinnerStone);
+				App::notifyWinner(mWinnerStone);
 				SetNewGame();
 			}
 		}
 
 		closesocket(recvSock);
 		closesocket(mSendSocket);
-	}
-
-	void GameManager::release()
-	{
-		closesocket(mListenSocket);
-		closesocket(mServerSocket);
-		closesocket(mSendSocket);
-
-		delete mInstance;
-		mInstance = nullptr;
 	}
 
 	int GameManager::ConnectOpponent()
@@ -135,7 +160,7 @@ namespace gomoku
 			return WSAGetLastError();
 		}
 
-		mServerRecvThread = std::thread(&GameManager::recvFromServer, this);
+		mServerRecvThread = std::thread(&GameManager::recvFromServer);
 		return S_OK;
 	}
 
@@ -179,18 +204,7 @@ namespace gomoku
 			return;
 		}
 
-		for (size_t y = 0; y < LINE_COUNT; ++y)
-		{
-			for (size_t x = 0; x < LINE_COUNT; ++x)
-			{
-				mBoard[y][x] = eStoneColor::None;
-			}
-		}
-
-		mWinnerStone = eStoneColor::None;
-		mGuideStonePosition.x = NONE;
-		mGuideStonePosition.y = NONE;
-		mCurrentTurnStone = eStoneColor::Black;
+		InitGame();
 
 		if (mMyStone == eStoneColor::Black)
 		{
@@ -236,6 +250,23 @@ namespace gomoku
 		mGuideStonePosition = { col, row };
 	}
 
+	void GameManager::InitGame()
+	{
+		for (size_t y = 0; y < LINE_COUNT; ++y)
+		{
+			for (size_t x = 0; x < LINE_COUNT; ++x)
+			{
+				mBoard[y][x] = eStoneColor::None;
+			}
+		}
+
+		mWinnerStone = eStoneColor::None;
+		mGuideStonePosition.x = NONE;
+		mGuideStonePosition.y = NONE;
+		mCurrentTurnStone = eStoneColor::Black;
+		mbGameOver = true;
+	}
+
 	void GameManager::AddStone()
 	{
 		ASSERT(!mbGameOver);
@@ -245,9 +276,13 @@ namespace gomoku
 			return;
 		}
 
-		mBoard[mGuideStonePosition.y][mGuideStonePosition.x] = mMyStone;
+		mBoard[mGuideStonePosition.y][mGuideStonePosition.x] = mCurrentTurnStone;
 		POINT p = { mGuideStonePosition.x, mGuideStonePosition.y };
-		send(mSendSocket, (const char*)&p, sizeof(p), 0);
+
+		if (SceneManager::GetCurrentScene() == eScene::Matching)
+		{
+			send(mSendSocket, (const char*)&p, sizeof(p), 0);
+		}
 
 		checkGameOver(p);
 	}
@@ -262,7 +297,7 @@ namespace gomoku
 		{
 			mWinnerStone = mCurrentTurnStone;
 			mbGameOver = true;
-			mbIsMyTurn = false;
+			mbIsMyTurn = true;
 			return true;
 		}
 
@@ -270,7 +305,7 @@ namespace gomoku
 		return false;
 	}
 
-	bool GameManager::checkHorizontal(POINT& p) const
+	bool GameManager::checkHorizontal(POINT& p) 
 	{
 		uint32_t chainingCount = 1;
 		chainingCount += checkWestRecursive(p.x - 1, p.y);
@@ -290,7 +325,7 @@ namespace gomoku
 		return false;
 	}
 
-	uint32_t GameManager::checkWestRecursive(uint32_t x, uint32_t y) const
+	uint32_t GameManager::checkWestRecursive(uint32_t x, uint32_t y) 
 	{
 		if (x < 0 || x >= LINE_COUNT
 			|| y < 0 || y >= LINE_COUNT
@@ -302,7 +337,7 @@ namespace gomoku
 		return checkWestRecursive(x - 1, y) + 1;
 	}
 
-	uint32_t GameManager::checkEastRecursive(uint32_t x, uint32_t y) const
+	uint32_t GameManager::checkEastRecursive(uint32_t x, uint32_t y) 
 	{
 		if (x < 0 || x >= LINE_COUNT
 			|| y < 0 || y >= LINE_COUNT
@@ -314,7 +349,7 @@ namespace gomoku
 		return checkEastRecursive(x + 1, y) + 1;
 	}
 
-	bool GameManager::checkVertical(POINT& p) const
+	bool GameManager::checkVertical(POINT& p) 
 	{
 		uint32_t chainingCount = 1;
 		chainingCount += checkNorthRecursive(p.x, p.y - 1);
@@ -334,7 +369,7 @@ namespace gomoku
 		return false;
 	}
 
-	uint32_t GameManager::checkNorthRecursive(uint32_t x, uint32_t y) const
+	uint32_t GameManager::checkNorthRecursive(uint32_t x, uint32_t y) 
 	{
 		if (x < 0 || x >= LINE_COUNT
 			|| y < 0 || y >= LINE_COUNT
@@ -346,7 +381,7 @@ namespace gomoku
 		return checkNorthRecursive(x, y - 1) + 1;
 	}
 
-	uint32_t GameManager::checkSouthRecursive(uint32_t x, uint32_t y) const
+	uint32_t GameManager::checkSouthRecursive(uint32_t x, uint32_t y) 
 	{
 		if (x < 0 || x >= LINE_COUNT
 			|| y < 0 || y >= LINE_COUNT
@@ -358,7 +393,7 @@ namespace gomoku
 		return checkSouthRecursive(x, y + 1) + 1;
 	}
 
-	bool GameManager::checkLeftDiagonal(POINT& p) const
+	bool GameManager::checkLeftDiagonal(POINT& p) 
 	{
 		uint32_t chainingCount = 1;
 		chainingCount += checkNorthWestRecursive(p.x - 1, p.y - 1);
@@ -378,7 +413,7 @@ namespace gomoku
 		return false;
 	}
 
-	uint32_t GameManager::checkNorthWestRecursive(uint32_t x, uint32_t y) const
+	uint32_t GameManager::checkNorthWestRecursive(uint32_t x, uint32_t y) 
 	{
 		if (x < 0 || x >= LINE_COUNT
 			|| y < 0 || y >= LINE_COUNT
@@ -390,7 +425,7 @@ namespace gomoku
 		return checkNorthWestRecursive(x - 1, y - 1) + 1;
 	}
 
-	uint32_t GameManager::checkSouthEastRecursive(uint32_t x, uint32_t y) const
+	uint32_t GameManager::checkSouthEastRecursive(uint32_t x, uint32_t y) 
 	{
 		if (x < 0 || x >= LINE_COUNT
 			|| y < 0 || y >= LINE_COUNT
@@ -402,7 +437,7 @@ namespace gomoku
 		return checkSouthEastRecursive(x + 1, y + 1) + 1;
 	}
 
-	bool GameManager::checkRightDiagonal(POINT& p) const
+	bool GameManager::checkRightDiagonal(POINT& p) 
 	{
 		uint32_t chainingCount = 1;
 		chainingCount += checkNorthEastRecursive(p.x + 1, p.y - 1);
@@ -422,7 +457,7 @@ namespace gomoku
 		return false;
 	}
 
-	uint32_t GameManager::checkNorthEastRecursive(uint32_t x, uint32_t y) const
+	uint32_t GameManager::checkNorthEastRecursive(uint32_t x, uint32_t y) 
 	{
 		if (x < 0 || x >= LINE_COUNT
 			|| y < 0 || y >= LINE_COUNT
@@ -434,7 +469,7 @@ namespace gomoku
 		return checkNorthEastRecursive(x + 1, y - 1) + 1;
 	}
 
-	uint32_t GameManager::checkSouthWestRecursive(uint32_t x, uint32_t y) const
+	uint32_t GameManager::checkSouthWestRecursive(uint32_t x, uint32_t y) 
 	{
 		if (x < 0 || x >= LINE_COUNT
 			|| y < 0 || y >= LINE_COUNT
