@@ -87,5 +87,7 @@ namespace gomoku
 			}
 		}
 		renderTarget->EndDraw();
+
+		redrawButtons();
 	}
 }

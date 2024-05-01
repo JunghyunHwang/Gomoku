@@ -29,6 +29,7 @@ namespace gomoku
 		for (auto it = mButtons.begin(); it != mButtons.end(); ++it)
 		{
 			InvalidateRect(*it, nullptr, false);
+			UpdateWindow(*it);
 		}
 	}
 }
