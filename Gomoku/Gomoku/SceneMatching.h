@@ -3,8 +3,6 @@
 
 namespace gomoku
 {
-	class GameManager;
-
 	class SceneMatching final : public Scene
 	{
 	public:
@@ -13,7 +11,9 @@ namespace gomoku
 		SceneMatching(const SceneMatching& other) = delete;
 		SceneMatching& operator=(const SceneMatching& rhs) = delete;
 
-		void Render() override;
+	private:
+		void render() override;
+
 	private:
 		enum
 		{

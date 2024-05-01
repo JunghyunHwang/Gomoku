@@ -10,10 +10,7 @@ namespace gomoku
 	HWND App::mhWnd = 0;
 
 	/*
-		Todo
-		* How to make singleton class in cpp
-		* When Search button click search form.
-		* Delete mResolution
+		Todo: When Search button click search form.
 	*/
 
 	HRESULT App::Init(HWND hWnd)
@@ -84,12 +81,13 @@ namespace gomoku
 			switch (SceneManager::GetCurrentScene())
 			{
 			case eScene::Matching:
+			case eScene::Practice:
 				GameManager::SetGuideStonePosition(LOWORD(lParam), HIWORD(lParam));
 				break;
 			case eScene::Lobby:
 				return NO_RENDER;
 			default:
-				ASSERT(false); // message: Unknown scene type
+				ASSERT(false); // Todo: message: Unknown scene type
 				return NO_RENDER;
 			}
 			break;
@@ -114,18 +112,17 @@ namespace gomoku
 			{
 			case eButton::Search:
 				/*
-					Todo
-					* Add Search form. mGameManager->ConnectOpponent();
+					Todo: Add Search form. mGameManager->ConnectOpponent();
 				*/
 				MessageBox(hWnd, L"Search Oppnent", L"", MB_OK);
 				break;
 			case eButton::Practice:
+				SceneManager::changeScene(eScene::Practice);
 				GameManager::SetNewGame();
-				SceneManager::changeScene(eScene::Matching);
 				break;
 			case eButton::Exit:
-				GameManager::InitGame();
 				SceneManager::changeScene(eScene::Lobby);
+				GameManager::InitGame();
 				break;
 			}
 			break;

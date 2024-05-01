@@ -3,10 +3,12 @@
 #include "GomokuDefines.h"
 #include "Macro.h"
 #include "eButton.h"
+#include "eBrush.h"
 
 #include "Scene.h"
 #include "SceneLobby.h"
 #include "SceneMatching.h"
+
 /*
 	TODO
 	* Add window resize
@@ -15,11 +17,7 @@
 namespace gomoku
 {
 	class App;
-	class GameManager;
-	class Scene;
-	class SceneLobby;
-	class SceneMatching;
-
+	
 	class SceneManager final
 	{
 		friend App;
@@ -48,8 +46,8 @@ namespace gomoku
 		{
 			STONE_STROKE_WIDTH = 2,
 			LOW_OPACITY = 2,
-			BRUSH_COUNT = 4,
-			SCENE_COUNT = static_cast<int>(eScene::Count),
+			BRUSH_COUNT = ENUM_CAST_INT(eBrush::Count),
+			SCENE_COUNT = ENUM_CAST_INT(eScene::Count),
 		};
 
 		static ID2D1Factory* mD2DFactory;
@@ -63,7 +61,7 @@ namespace gomoku
 
 	void SceneManager::render()
 	{
-		mScenes[ENUM_CAST_INT(mCurrentScene)]->Render();
+		mScenes[ENUM_CAST_INT(mCurrentScene)]->render();
 	}
 
 	void SceneManager::changeScene(const eScene& type)

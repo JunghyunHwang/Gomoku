@@ -131,6 +131,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="App.h" />
+    <ClInclude Include="eBrush.h" />
     <ClInclude Include="eButton.h" />
     <ClInclude Include="eScene.h" />
     <ClInclude Include="eStoneColor.h" />

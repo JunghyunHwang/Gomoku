@@ -3,21 +3,23 @@
 
 namespace gomoku
 {
+	class SceneManager;
+
 	class Scene
 	{
+		friend SceneManager;
 	public:
 		Scene();
 		~Scene() = default;
-		Scene(const Scene& other) = delete;
-		Scene& operator=(const Scene& rhs) = delete;
-
-		virtual void Render() = 0;
+		Scene(const Scene& other) = default;
+		Scene& operator=(const Scene& rhs) = default;
 
 		inline void AddButton(const HWND& button);
 		void ShowButtons() const;
 		void HideButtons() const;
 
 	protected:
+		virtual void render() = 0;
 		void redrawButtons() const;
 
 	protected:

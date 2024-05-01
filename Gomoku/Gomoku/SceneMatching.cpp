@@ -5,7 +5,7 @@
 
 namespace gomoku
 {
-	void SceneMatching::Render()
+	void SceneMatching::render()
 	{
 		RENDER_TARGET* renderTarget = SceneManager::getRenderTaget();
 		SOLID_BRUSH** brushes = SceneManager::getBrushes();
@@ -44,17 +44,11 @@ namespace gomoku
 			const BOARD& board = GameManager::GetBoard();
 
 			// Draw guide stone
-			if (GameManager::IsMyTurn() && GameManager::IsValidePosition())
+			if (GameManager::IsValidePosition() && GameManager::IsMyTurn())
 			{
-				eStoneColor stoneColor = GameManager::GetStoneColor();
+				eStoneColor stoneColor = GameManager::GetCurrentStoneColor();
 				const POINT& currPos = GameManager::GetGuideStonePosition();
 
-				wchar_t buff[20];
-
-#ifdef _DEBUG
-				wsprintf(buff, L"X: %d / Y: %d", currPos.x, currPos.y);
-				SetWindowText(SceneManager::mhWnd, buff);
-#endif
 				D2D1_ELLIPSE guideStoneInfo = D2D1::Ellipse(
 					D2D1::Point2F(
 						static_cast<float>(LINE_INTERVAL * currPos.x + BOARD_START_POINT),
@@ -93,7 +87,5 @@ namespace gomoku
 			}
 		}
 		renderTarget->EndDraw();
-
-		redrawButtons();
 	}
 }

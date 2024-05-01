@@ -1,6 +1,5 @@
 #pragma once
 #include "Scene.h"
-#include "SceneManager.h"
 
 namespace gomoku
 {
@@ -12,6 +11,7 @@ namespace gomoku
 		SceneLobby(const SceneLobby& other) = delete;
 		SceneLobby& operator=(const SceneLobby& rhs) = delete;
 
-		void Render() override;
+	private:
+		void render() override;
 	};
 }

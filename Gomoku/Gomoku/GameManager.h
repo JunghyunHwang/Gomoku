@@ -21,6 +21,7 @@ namespace gomoku
 		static inline const std::vector<std::vector<eStoneColor>>& GetBoard();
 		static inline bool IsMyTurn();
 		static inline eStoneColor GetStoneColor();
+		static inline eStoneColor GetCurrentStoneColor();
 		static inline const POINT& GetGuideStonePosition();
 		static inline bool IsGameOver();
 		static inline eStoneColor GetWinnerStone();
@@ -79,7 +80,6 @@ namespace gomoku
 		static bool mbIsMyTurn;
 		static eStoneColor mMyStone;
 		static eStoneColor mCurrentTurnStone;
-		static eStoneColor mWinnerStone;
 		static POINT mGuideStonePosition;
 
 		static char mBuffer[BUFFER_SIZE];
@@ -110,6 +110,11 @@ namespace gomoku
 		return mMyStone;
 	}
 
+	eStoneColor GameManager::GetCurrentStoneColor()
+	{
+		return mCurrentTurnStone;
+	}
+
 	const POINT& GameManager::GetGuideStonePosition() 
 	{
 		return mGuideStonePosition;
@@ -122,13 +127,13 @@ namespace gomoku
 
 	eStoneColor GameManager::GetWinnerStone() 
 	{
-		return mWinnerStone;
+		return mbGameOver ? mCurrentTurnStone : eStoneColor::None;
 	}
 
 	void GameManager::switchTurn()
 	{
 		mCurrentTurnStone = static_cast<eStoneColor>(ENUM_CAST_INT(mCurrentTurnStone) ^ XOR_CHANGE_TURN);
-		
+
 		if (SceneManager::GetCurrentScene() == eScene::Matching)
 		{
 			mbIsMyTurn ^= XOR_CHANGE_TURN;

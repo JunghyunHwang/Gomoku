@@ -46,10 +46,10 @@ namespace gomoku
 		}
 
 		// Failed...
-		mRenderTarget->CreateSolidColorBrush(D2D1::ColorF(0x00000000, 1.f), &mBrushes[0]); // Black
-		mRenderTarget->CreateSolidColorBrush(D2D1::ColorF(0xffffffff, 1.f), &mBrushes[1]); // White
-		mRenderTarget->CreateSolidColorBrush(D2D1::ColorF(0x00000000, 0.5f), &mBrushes[2]); // Low opacity black
-		mRenderTarget->CreateSolidColorBrush(D2D1::ColorF(0xffffffff, 0.5f), &mBrushes[3]); // Low opacity white
+		mRenderTarget->CreateSolidColorBrush(D2D1::ColorF(0x00000000, 1.f), &mBrushes[ENUM_CAST_INT(eBrush::Black)]);
+		mRenderTarget->CreateSolidColorBrush(D2D1::ColorF(0xffffffff, 1.f), &mBrushes[ENUM_CAST_INT(eBrush::White)]);
+		mRenderTarget->CreateSolidColorBrush(D2D1::ColorF(0x00000000, 0.5f), &mBrushes[ENUM_CAST_INT(eBrush::HalfOpacityBlack)]);
+		mRenderTarget->CreateSolidColorBrush(D2D1::ColorF(0xffffffff, 0.5f), &mBrushes[ENUM_CAST_INT(eBrush::HalfOpacityWhite)]);
 
 		for (size_t i = 0; i < SCENE_COUNT; ++i)
 		{
@@ -66,6 +66,14 @@ namespace gomoku
 				mScenes[i]->AddButton(practice);
 			}
 			break;
+			case eScene::Practice:
+			{
+				mScenes[i] = new SceneMatching();
+
+				HWND exit = CreateWindow(L"button", L"³ª°¡±â", WS_CHILD | WS_VISIBLE, rt.right - 60, rt.bottom - 40, 50, 30, mhWnd, (HMENU)eButton::Exit, ghInst, NULL);
+				mScenes[i]->AddButton(exit);
+			}
+			break;
 			case eScene::Matching:
 			{
 				mScenes[i] = new SceneMatching();
@@ -75,7 +83,7 @@ namespace gomoku
 			}
 			break;
 			default:
-				ASSERT(false);
+				ASSERT(false); // Todo: message
 				hr = E_FAIL;
 				break;
 			}
@@ -86,17 +94,17 @@ namespace gomoku
 
 	void SceneManager::release()
 	{
+		for (size_t i = 0; i < SCENE_COUNT; ++i)
+		{
+			delete mScenes[i];
+		}
+
 		SafeRelease(&mD2DFactory);
 		SafeRelease(&mRenderTarget);
 
 		for (size_t i = 0; i < BRUSH_COUNT; ++i)
 		{
-			 SafeRelease(&mBrushes[i]);
-		}
-
-		for (size_t i = 0; i < SCENE_COUNT; ++i)
-		{
-			delete mScenes[i];
+			SafeRelease(&mBrushes[i]);
 		}
 	}
 }

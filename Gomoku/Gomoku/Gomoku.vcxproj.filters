@@ -62,6 +62,9 @@
     <ClInclude Include="SceneManager.h">
       <Filter>App</Filter>
     </ClInclude>
+    <ClInclude Include="eBrush.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="App.cpp">

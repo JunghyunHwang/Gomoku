@@ -7,6 +7,7 @@ namespace gomoku
 	/*
 		Todo
 		* When socket create fail
+		* Closing window during a game
 	*/
 
 	BOARD GameManager::mBoard(LINE_COUNT, std::vector<eStoneColor>(LINE_COUNT, eStoneColor::None));
@@ -16,9 +17,8 @@ namespace gomoku
 
 	bool GameManager::mbGameOver = true;
 	bool GameManager::mbIsMyTurn = false;
-	eStoneColor GameManager::mMyStone = eStoneColor::Black;
+	eStoneColor GameManager::mMyStone = eStoneColor::None;
 	eStoneColor GameManager::mCurrentTurnStone = eStoneColor::None;
-	eStoneColor GameManager::mWinnerStone = eStoneColor::None;
 	POINT GameManager::mGuideStonePosition = { NONE, NONE };
 
 	char GameManager::mBuffer[BUFFER_SIZE] = { 0, };
@@ -69,6 +69,21 @@ namespace gomoku
 		mListenSocket = INVALID_SOCKET;
 		mServerSocket = INVALID_SOCKET;
 		mSendSocket = INVALID_SOCKET;
+
+		if (mServerRecvThread.joinable())
+		{
+			mServerRecvThread.join();
+		}
+
+		if (mAcceptThread.joinable())
+		{
+			mAcceptThread.join();
+		}
+
+		if (mRecvThread.joinable())
+		{
+			mRecvThread.join();
+		}
 	}
 
 	int GameManager::BindAndListen()
@@ -118,7 +133,7 @@ namespace gomoku
 		SOCKADDR_IN client = { 0, };
 		int clientAddrSize = sizeof(client);
 
-		while ((recvSock = accept(mListenSocket, (SOCKADDR*)&client, &clientAddrSize)))
+		while ((recvSock = accept(mListenSocket, (SOCKADDR*)&client, &clientAddrSize)) != INVALID_SOCKET)
 		{
 			mRecvThread = std::thread(&GameManager::recvFromOpponent, recvSock);
 		}
@@ -139,7 +154,7 @@ namespace gomoku
 
 			if (checkGameOver(p))
 			{
-				App::notifyWinner(mWinnerStone);
+				App::notifyWinner(mCurrentTurnStone);
 				SetNewGame();
 			}
 		}
@@ -196,17 +211,12 @@ namespace gomoku
 	{
 		ASSERT(mBoard.size() == LINE_COUNT);
 		ASSERT(mBoard[0].size() == LINE_COUNT);
-		ASSERT(!mbIsMyTurn);
+		ASSERT(mbGameOver);
 
-		if (!mbGameOver)
-		{
-			ASSERT(false);
-			return;
-		}
+		mCurrentTurnStone = eStoneColor::Black;
 
-		InitGame();
-
-		if (mMyStone == eStoneColor::Black)
+		if (mMyStone == eStoneColor::Black
+			|| SceneManager::GetCurrentScene() == eScene::Practice)
 		{
 			mbIsMyTurn = true;
 		}
@@ -260,10 +270,10 @@ namespace gomoku
 			}
 		}
 
-		mWinnerStone = eStoneColor::None;
 		mGuideStonePosition.x = NONE;
 		mGuideStonePosition.y = NONE;
-		mCurrentTurnStone = eStoneColor::Black;
+		mMyStone = eStoneColor::None;
+		mbIsMyTurn = false;
 		mbGameOver = true;
 	}
 
@@ -295,9 +305,8 @@ namespace gomoku
 			|| checkLeftDiagonal(p)
 			|| checkRightDiagonal(p))
 		{
-			mWinnerStone = mCurrentTurnStone;
-			mbGameOver = true;
-			mbIsMyTurn = true;
+			InitGame();
+
 			return true;
 		}
 

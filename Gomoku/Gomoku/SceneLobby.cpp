@@ -1,9 +1,10 @@
 #include "pch.h"
 #include "SceneLobby.h"
+#include "GameManager.h"
 
 namespace gomoku
 {
-	void SceneLobby::Render()
+	void SceneLobby::render()
 	{
 		RENDER_TARGET* renderTarget = SceneManager::getRenderTaget();
 		ASSERT(renderTarget != nullptr);
