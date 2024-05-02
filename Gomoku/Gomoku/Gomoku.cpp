@@ -45,7 +45,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         goto WSA_CLEAN;
     }
 
-    if (FAILED(App::Init(hWnd)))
+    if (FAILED(App::Init(hWnd, { RESOLUTION, RESOLUTION })))
     {
         goto APP_RELEASE;
     }

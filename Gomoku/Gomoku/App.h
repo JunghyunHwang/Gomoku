@@ -15,7 +15,7 @@ namespace gomoku
 	{
 		friend GameManager;
 	public:
-		static HRESULT Init(HWND);
+		static HRESULT Init(HWND, POINT);
 		static void Run();
 		static void Release();
 

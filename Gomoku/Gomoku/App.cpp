@@ -13,9 +13,13 @@ namespace gomoku
 		Todo: When Search button click search form.
 	*/
 
-	HRESULT App::Init(HWND hWnd)
+	HRESULT App::Init(HWND hWnd, POINT resolution)
 	{
 		mhWnd = hWnd;
+
+		RECT rt = { 0, 0, resolution.x, resolution.y };
+		AdjustWindowRect(&rt, WS_OVERLAPPED, false);
+		SetWindowPos(mhWnd, nullptr, WINDOW_START_X, WINDOW_START_Y, rt.right - rt.left, rt.bottom - rt.top, 0);
 
 		HRESULT hr = GameManager::init();
 		if (FAILED(hr))
@@ -25,9 +29,14 @@ namespace gomoku
 		}
 
 		hr = SceneManager::init(hWnd);
+		if (FAILED(hr))
+		{
+			return hr;
+		}
+
 		return hr;
 	}
-	
+
 	void App::notifyWinner(eStoneColor winner)
 	{
 		switch (winner)
